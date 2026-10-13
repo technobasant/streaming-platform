@@ -6,6 +6,9 @@
 
 SET 'pipeline.name' = 'windows';
 SET 'parallelism.default' = '2';
+-- Window and session state is small and short-lived: keep it on the heap. With
+-- RocksDB, the cluster default, this job topped out near 2,800 events/s.
+SET 'state.backend.type' = 'hashmap';
 -- A partition with no traffic must not hold the watermark back for ever.
 SET 'table.exec.source.idle-timeout' = '10 s';
 
