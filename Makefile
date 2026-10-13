@@ -20,7 +20,7 @@ jobs: ## (re)submit any Flink SQL job that is not running
 	scripts/submit-jobs.sh
 
 demo: ## 60 s of storefront traffic with faults, then reconcile every layer
-	@mkdir -p runs
+	@mkdir -p runs && chmod 777 runs  # the tools image runs as uid 10001
 	$(COMPOSE) --profile load run --rm -T generator generate --rate 500 --duration 60 --run-id demo$$(date +%H%M%S) | tee runs/last.json
 	$(RUN) -v $(CURDIR)/runs:/app/runs gatekeeper reconcile runs/$$(python3 -c 'import json;print(json.load(open("runs/last.json"))["run_id"])').json --wait 120
 

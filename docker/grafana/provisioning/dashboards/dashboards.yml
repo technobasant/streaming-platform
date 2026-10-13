@@ -2,5 +2,6 @@ apiVersion: 1
 providers:
   - name: streaming-platform
     type: file
+    folder: Streaming platform
     options:
       path: /var/lib/grafana/dashboards
