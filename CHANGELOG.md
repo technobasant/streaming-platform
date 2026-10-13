@@ -4,7 +4,7 @@
 
 First release.
 
-- A compose stack, one container per node: Apache Kafka 4.1 (three KRaft nodes,
+- A compose stack, one container per node: Apache Kafka 4.3.1 (three KRaft nodes,
   RF 3, `min.insync.replicas=2`), Confluent Schema Registry 8.0, Flink 1.20.2 (one
   JobManager, two TaskManagers, RocksDB, checkpoints every 5 s to SeaweedFS S3), ClickHouse
   25.8, Iceberg on SeaweedFS through the Iceberg REST catalog, Prometheus and Grafana.

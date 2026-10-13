@@ -11,7 +11,7 @@ on a Docker VM of 8 CPUs and about 12 GB shared with everything else here.
 
 ## Decision
 
-* Apache Kafka 4.1 (`apache/kafka`), three nodes, each both broker and KRaft
+* Apache Kafka 4.3.1 (`apache/kafka`), three nodes, each both broker and KRaft
   controller, one container per node.
 * Every topic: replication factor 3, `min.insync.replicas=2`, unclean leader election
   off. Producers use `acks=all` with idempotence on. Topics are created by the
@@ -33,6 +33,16 @@ repository is Apache-2.0 or compatible.
 Separate controllers are the production layout. Three more JVMs would not fit, and
 combined mode still exercises what matters here: killing the active controller
 forces a KRaft leader election and partition leadership changes at the same time.
+
+## Why 4.3 and not 4.1
+
+The first runs used 4.1.0 and hit KAFKA-19888: the group coordinator measures
+durations with the wall clock, the Docker VM's clock stepped backwards, a metrics
+histogram threw on the negative value, and the coordinator for one
+`__consumer_offsets` partition stopped accepting writes until a restart. The
+ClickHouse consumer group on that partition sat in `CompletingRebalance` for over
+fifteen minutes and the dead-letter table stopped filling. Fixed in 4.1.2 and 4.2.0;
+this uses 4.3.1.
 
 ## Consequences
 
