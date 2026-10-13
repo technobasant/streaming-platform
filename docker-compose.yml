@@ -6,7 +6,9 @@ x-kafka: &kafka
   restart: unless-stopped
   mem_limit: 900m
   healthcheck:
-    test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+    # A port check, not kafka-broker-api-versions.sh: that starts a JVM, and every
+    # 5 s on three brokers it cost about four CPUs of an eight-CPU host.
+    test: ["CMD-SHELL", "nc -z localhost 9092"]
     interval: 5s
     timeout: 10s
     retries: 30
