@@ -22,3 +22,16 @@ def test_duplicate_loss_and_leak_are_each_caught():
     assert (lost.missing, lost.exact) == (1, False)
     leaked = compare([*expected, "r1-000000001"], expected)
     assert (leaked.unexpected, leaked.exact) == (1, False)
+
+
+def test_tally_matches_compare_on_sequence_numbers():
+    import numpy as np
+
+    from streamplat.reconcile import tally
+
+    # seqs 1 and 4 are poison; 0 is duplicated, 3 is missing, 4 leaked, 9 is out of range
+    seqs = np.array([0, 0, 2, 4, 5, 9], dtype=np.int64)
+    layer = tally(seqs, LEDGER)
+    assert layer == Layer(rows=6, unique=5, missing=1, unexpected=2)
+    assert not layer.exact
+    assert tally(np.array([0, 2, 3, 5], dtype=np.int64), LEDGER).exact

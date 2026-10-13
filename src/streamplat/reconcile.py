@@ -9,14 +9,16 @@ exactly the poison the generator injected.
 from __future__ import annotations
 
 import json
+from array import array
 from collections import Counter
-from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import clickhouse_connect
+import numpy as np
 from confluent_kafka import OFFSET_BEGINNING, Consumer, TopicPartition
+from numpy.typing import NDArray
 
 from .settings import CLEAN_TOPIC, DLQ_TOPIC, LATE_TOPIC, VALID_TOPIC, Settings
 
@@ -35,32 +37,65 @@ class Layer:
         return self.rows == self.unique and self.missing == 0 and self.unexpected == 0
 
 
+def poison_seqs(ledger: dict[str, Any]) -> list[int]:
+    return sorted({s for seqs in ledger["poison"].values() for s in seqs})
+
+
 def expected_ids(ledger: dict[str, Any]) -> set[str]:
-    poison = {s for seqs in ledger["poison"].values() for s in seqs}
+    poison = set(poison_seqs(ledger))
     run = ledger["run_id"]
     return {f"{run}-{s:09d}" for s in range(ledger["slots"]) if s not in poison}
 
 
-def compare(ids: Iterable[str], expected: set[str]) -> Layer:
-    counts = Counter(ids)
-    present = set(counts)
+def tally(seqs: NDArray[np.int64], ledger: dict[str, Any]) -> Layer:
+    """Compare the sequence numbers found at a layer with the ledger's expectation.
+
+    Event ids are ``<run>-<seq>``, so a run's ids are the integers 0..slots-1 minus the
+    poison: counting with one array per layer keeps half a million events in a few MB.
+    """
+    slots = int(ledger["slots"])
+    inside = seqs[(seqs >= 0) & (seqs < slots)]
+    outside = seqs[(seqs < 0) | (seqs >= slots)]
+    counts = np.bincount(inside, minlength=slots)
+    expected = np.ones(slots, dtype=bool)
+    expected[poison_seqs(ledger)] = False
+    outside_unique = int(np.unique(outside).size)
     return Layer(
-        rows=sum(counts.values()),
+        rows=int(seqs.size),
+        unique=int((counts > 0).sum()) + outside_unique,
+        missing=int((counts[expected] == 0).sum()),
+        unexpected=int((counts[~expected] > 0).sum()) + outside_unique,
+    )
+
+
+def compare(ids: list[str], expected: set[str]) -> Layer:
+    """The same comparison on explicit ids (used by the tests)."""
+    present = set(ids)
+    return Layer(
+        rows=len(ids),
         unique=len(present),
         missing=len(expected - present),
         unexpected=len(present - expected),
     )
 
 
+def _seq(key: str, prefix: str) -> int:
+    try:
+        return int(key[len(prefix) :])
+    except ValueError:
+        return -1
+
+
 def scan_topic(
     settings: Settings,
     topic: str,
     prefix: str,
-    headers: bool = False,
     isolation: str = "read_committed",
     since_ms: int = 0,
-) -> list[tuple[str, dict[str, str]]]:
-    """Every message in ``topic`` whose key starts with ``prefix``.
+    reasons: bool = False,
+) -> tuple[NDArray[np.int64], Counter[str]]:
+    """Sequence numbers of every message in ``topic`` whose key starts with ``prefix``,
+    and with ``reasons`` a count of their ``error.reason`` headers.
 
     With ``read_uncommitted`` the scan also sees records from aborted transactions:
     the difference between the two counts is what a restart rolled back and redid.
@@ -91,7 +126,8 @@ def scan_topic(
             ends[p] = high
             parts.append(TopicPartition(topic, p, start))
     consumer.assign(parts)
-    out: list[tuple[str, dict[str, str]]] = []
+    seqs = array("q")
+    why: Counter[str] = Counter()
     done: set[int] = set()
     idle = 0
     while len(done) < len(ends) and idle < 20:
@@ -109,15 +145,16 @@ def scan_topic(
             raw_key = m.key()
             key = raw_key.decode(errors="replace") if isinstance(raw_key, bytes) else str(raw_key)
             if key.startswith(prefix):
-                hdrs = _headers(m.headers()) if headers else {}
-                out.append((key, hdrs))
+                seqs.append(_seq(key, prefix))
+                if reasons:
+                    why[_headers(m.headers()).get("error.reason", "?")] += 1
         # A transactional topic ends in a commit marker the consumer never sees, so a
         # partition is also done when its position reaches the end offset.
         for tp in consumer.position([TopicPartition(topic, p) for p in ends]):
             if tp.offset >= ends[tp.partition]:
                 done.add(tp.partition)
     consumer.close()
-    return out
+    return np.frombuffer(seqs, dtype=np.int64), why
 
 
 def _headers(raw: Any) -> dict[str, str]:
@@ -138,7 +175,18 @@ def clickhouse(settings: Settings) -> Any:
     )
 
 
-def iceberg_ids(settings: Settings, prefix: str) -> list[str]:
+def ch_seqs(ch: Any, table: str, prefix: str, final: bool) -> NDArray[np.int64]:
+    """Sequence numbers of a run's rows in a ClickHouse table, one per row."""
+    sql = (
+        f"SELECT toInt64OrDefault(substring(event_id, {len(prefix) + 1}), toInt64(-1)) "
+        f"FROM {table} {'FINAL' if final else ''} WHERE startsWith(event_id, {{p:String}})"
+    )
+    result = ch.query_np(sql, parameters={"p": prefix})
+    return np.asarray(result[:, 0] if result.size else result, dtype=np.int64).reshape(-1)
+
+
+def iceberg_seqs(settings: Settings, prefix: str) -> NDArray[np.int64]:
+    import pyarrow.compute as pc
     from pyiceberg.catalog import load_catalog
 
     catalog = load_catalog(
@@ -154,24 +202,26 @@ def iceberg_ids(settings: Settings, prefix: str) -> list[str]:
         },
     )
     table = catalog.load_table(ICEBERG_TABLE)
-    arrow = table.scan(row_filter=f"event_id LIKE '{prefix}%'", selected_fields=("event_id",))
-    return [str(v) for v in arrow.to_arrow().column("event_id").to_pylist()]
+    scan = table.scan(row_filter=f"event_id LIKE '{prefix}%'", selected_fields=("event_id",))
+    ids = scan.to_arrow().column("event_id")
+    seqs = pc.cast(pc.utf8_slice_codeunits(ids, len(prefix)), "int64")
+    return np.asarray(seqs.to_numpy(zero_copy_only=False), dtype=np.int64)
 
 
 def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[str, Any]:
     ledger = json.loads(ledger_path.read_text())
     run = ledger["run_id"]
     prefix = f"{run}-"
-    expected = expected_ids(ledger)
-    late = {f"{run}-{s:09d}" for s in ledger["late"]}
-    poison_total = sum(len(v) for v in ledger["poison"].values())
+    n_poison = len(poison_seqs(ledger))
+    n_expected = int(ledger["slots"]) - n_poison
+    late = np.array(sorted(ledger["late"]), dtype=np.int64)
     report: dict[str, Any] = {
         "run_id": run,
         "ledger": {
             "slots": ledger["slots"],
-            "expected_valid": len(expected),
+            "expected_valid": n_expected,
             "poison": {k: len(v) for k, v in ledger["poison"].items()},
-            "poison_total": poison_total,
+            "poison_total": n_poison,
             "late": len(ledger["late"]),
             "out_of_order": len(ledger["out_of_order"]),
             "duplicated": len(ledger["duplicated"]),
@@ -184,61 +234,60 @@ def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[
     since = int(ledger["started_at_ms"]) - 60_000
 
     if "kafka" in layers:
-        valid = [k for k, _ in scan_topic(settings, VALID_TOPIC, prefix, since_ms=since)]
+        valid, _ = scan_topic(settings, VALID_TOPIC, prefix, since_ms=since)
         # The gatekeeper does not deduplicate: events.valid must hold every send.
-        v = compare(valid, expected)
+        v = tally(valid, ledger)
+        uncommitted, _ = scan_topic(
+            settings, VALID_TOPIC, prefix, isolation="read_uncommitted", since_ms=since
+        )
         out["events.valid"] = {
             **v.__dict__,
             "duplicates_expected": len(ledger["duplicated"]),
-            "exact": v.unique == len(expected)
+            "aborted_and_rewritten": int(uncommitted.size - valid.size),
+            "exact": v.unique == n_expected
             and v.missing == 0
             and v.unexpected == 0
-            and v.rows == len(expected) + len(ledger["duplicated"]),
+            and v.rows == n_expected + len(ledger["duplicated"]),
         }
-        clean = compare(
-            [k for k, _ in scan_topic(settings, CLEAN_TOPIC, prefix, since_ms=since)], expected
-        )
-        everything = scan_topic(
+        del valid, uncommitted
+        clean_seqs, _ = scan_topic(settings, CLEAN_TOPIC, prefix, since_ms=since)
+        clean = tally(clean_seqs, ledger)
+        everything, _ = scan_topic(
             settings, CLEAN_TOPIC, prefix, isolation="read_uncommitted", since_ms=since
         )
         out["events.clean"] = {
             **clean.__dict__,
             # Written inside a transaction that was then aborted (a restart), and
             # written again after it. Never visible to read_committed consumers.
-            "aborted_and_rewritten": len(everything) - clean.rows,
+            "aborted_and_rewritten": int(everything.size - clean_seqs.size),
             "exact": clean.exact,
         }
-        uncommitted_valid = len(
-            scan_topic(settings, VALID_TOPIC, prefix, isolation="read_uncommitted", since_ms=since)
-        )
-        out["events.valid"]["aborted_and_rewritten"] = uncommitted_valid - v.rows
-        dlq = scan_topic(settings, DLQ_TOPIC, run, headers=True, since_ms=since)
-        reasons = Counter(h.get("error.reason", "?") for _, h in dlq)
+        del clean_seqs, everything
+        dlq, reasons = scan_topic(settings, DLQ_TOPIC, prefix, since_ms=since, reasons=True)
         out["events.dlq"] = {
-            "rows": len(dlq),
-            "injected": poison_total,
-            "exact": len(dlq) == poison_total,
+            "rows": int(dlq.size),
+            "injected": n_poison,
+            "exact": int(dlq.size) == n_poison,
             "reasons": dict(reasons),
         }
-        late_seen = [k for k, _ in scan_topic(settings, LATE_TOPIC, prefix, since_ms=since)]
+        late_seen, _ = scan_topic(settings, LATE_TOPIC, prefix, since_ms=since)
+        found = np.isin(late, late_seen)
         out["events.late"] = {
-            "rows": len(late_seen),
-            "unique": len(set(late_seen)),
-            "sent_late": len(late),
-            "matches_ledger": set(late_seen) == late and len(late_seen) == len(late),
+            "rows": int(late_seen.size),
+            "unique": int(np.unique(late_seen).size),
+            "sent_late": int(late.size),
+            "sent_late_not_in_side_output": int((~found).sum()),
+            "in_side_output_not_sent_late": int((~np.isin(late_seen, late)).sum()),
+            "matches_ledger": bool(found.all()) and int(late_seen.size) == int(late.size),
         }
 
     if "clickhouse" in layers:
         ch = clickhouse(settings)
-        q = "SELECT event_id FROM lumen.events {final} WHERE startsWith(event_id, {{p:String}})"
-        raw = [r[0] for r in ch.query(q.format(final=""), parameters={"p": prefix}).result_rows]
-        fin = [
-            r[0] for r in ch.query(q.format(final="FINAL"), parameters={"p": prefix}).result_rows
-        ]
-        layer = compare(fin, expected)
+        raw_rows = ch_seqs(ch, "lumen.events", prefix, final=False).size
+        layer = tally(ch_seqs(ch, "lumen.events", prefix, final=True), ledger)
         out["clickhouse.events"] = {
             **layer.__dict__,
-            "rows_before_merge": len(raw),
+            "rows_before_merge": int(raw_rows),
             "exact": layer.exact,
         }
         lo, hi = ledger["started_at_ms"], ledger["ended_at_ms"] + 15_000
@@ -248,27 +297,24 @@ def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[
             "AND window_start < fromUnixTimestamp64Milli({hi:Int64})",
             parameters={"lo": lo, "hi": hi},
         ).result_rows[0][0]
-        late_rows = ch.query(
-            "SELECT count(), uniqExact(event_id) FROM lumen.late_events FINAL "
-            "WHERE startsWith(event_id, {p:String})",
-            parameters={"p": prefix},
-        ).result_rows[0]
-        on_time = len(expected) - len(late)
+        late_rows = ch_seqs(ch, "lumen.late_events", prefix, final=True)
+        on_time = n_expected - int(late.size)
         out["windows_vs_late"] = {
             "on_time_expected": on_time,
             "counted_in_windows": int(windowed or 0),
-            "late_expected": len(late),
-            "late_side_output": int(late_rows[1]),
-            "exact": int(windowed or 0) == on_time and int(late_rows[1]) == len(late),
+            "late_expected": int(late.size),
+            "late_side_output": int(np.unique(late_rows).size),
+            "exact": int(windowed or 0) == on_time
+            and int(np.unique(late_rows).size) == int(late.size),
         }
         dlq_rows = ch.query(
             "SELECT count() FROM lumen.dlq FINAL WHERE startsWith(key, {p:String})",
-            parameters={"p": run},
+            parameters={"p": prefix},
         ).result_rows[0][0]
-        out["clickhouse.dlq"] = {"rows": int(dlq_rows), "exact": int(dlq_rows) == poison_total}
+        out["clickhouse.dlq"] = {"rows": int(dlq_rows), "exact": int(dlq_rows) == n_poison}
 
     if "iceberg" in layers:
-        ice = compare(iceberg_ids(settings, prefix), expected)
+        ice = tally(iceberg_seqs(settings, prefix), ledger)
         out["iceberg.events"] = {**ice.__dict__, "exact": ice.exact}
 
     report["exact"] = all(bool(v.get("exact", v.get("matches_ledger", True))) for v in out.values())
@@ -277,24 +323,21 @@ def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[
 
 def latency(settings: Settings, ledger_path: Path) -> dict[str, Any]:
     """Event time to queryable in ClickHouse, for events sent on time and in order."""
-    import numpy as np
-
     ledger = json.loads(ledger_path.read_text())
     run = ledger["run_id"]
-    skip = {f"{run}-{s:09d}" for s in ledger["late"] + ledger["out_of_order"]}
-    rows = (
-        clickhouse(settings)
-        .query(
-            "SELECT event_id, toUnixTimestamp64Milli(min(_ingested_at)) - "
-            "toUnixTimestamp64Milli(any(event_time)) FROM lumen.events "
-            "WHERE startsWith(event_id, {p:String}) GROUP BY event_id",
-            parameters={"p": f"{run}-"},
-        )
-        .result_rows
+    prefix = f"{run}-"
+    result = clickhouse(settings).query_np(
+        f"SELECT toInt64OrDefault(substring(event_id, {len(prefix) + 1}), toInt64(-1)), "
+        "toUnixTimestamp64Milli(min(_ingested_at)) - toUnixTimestamp64Milli(any(event_time)) "
+        "FROM lumen.events WHERE startsWith(event_id, {p:String}) GROUP BY event_id",
+        parameters={"p": prefix},
     )
-    lat = np.array([ms for eid, ms in rows if eid not in skip], dtype=np.float64) / 1000
-    if lat.size == 0:
+    if result.size == 0:
         return {"run_id": run, "n": 0}
+    seqs = np.asarray(result[:, 0], dtype=np.int64)
+    ms = np.asarray(result[:, 1], dtype=np.float64)
+    skip = np.array(ledger["late"] + ledger["out_of_order"], dtype=np.int64)
+    lat = ms[~np.isin(seqs, skip)] / 1000
     p50, p95, p99 = np.percentile(lat, [50, 95, 99])
     duration_s = (ledger["ended_at_ms"] - ledger["started_at_ms"]) / 1000
     return {
