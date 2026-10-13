@@ -65,6 +65,11 @@ jobs:
       - run: make up
       - name: 45 s of traffic with every fault, then reconcile every layer
         run: |
+          # Before the windows job's first watermark nothing is late, so late events
+          # sent in its first seconds would land in windows (ADR 6). The probes give
+          # it a watermark within a few seconds; a local rehearsal without this wait
+          # failed on exactly that, 5 of 142 late events.
+          sleep 30
           docker compose --profile load run --rm -T generator \
             generate --rate 300 --duration 45 --run-id ci
           docker compose run --rm --no-deps -T -v "$PWD/runs:/app/runs" gatekeeper \
