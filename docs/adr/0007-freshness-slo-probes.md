@@ -27,5 +27,8 @@ alerts on every quiet period and says nothing when late events keep the maximum 
   latency comes from the reconciler (`streamplat latency`).
 * With no probes resolved, the ratio is undefined and the burn alerts cannot fire;
   `FreshnessProbeSilent` covers a dead exporter.
+* The prober is its own process. Kafka lag and replication come from a second one
+  (`kafka-exporter`), because a librdkafka abort in an admin request during a broker
+  kill once took the probe down with it.
 * No Alertmanager: alerts are read from Prometheus. Routing and paging are out of
   scope.

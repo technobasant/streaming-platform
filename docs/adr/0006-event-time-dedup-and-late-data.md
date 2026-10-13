@@ -39,3 +39,12 @@ batch backfill, not a reason to make every consumer handle updates.
 * The side-output condition uses the watermark of the source task that sees the
   record; the window operator's watermark can lag it slightly. MEASUREMENTS.md
   reports whether the two ever disagreed.
+* **Idleness is a correctness setting, not only a liveness one.** A partition with
+  no data for `table.exec.source.idle-timeout` stops holding the watermark back. If
+  it was merely stalled — its leader moving during a broker failure — the watermark
+  moves on without it, and what it delivers next is late. With 10 s, one broker
+  kill turned 1.7% of a run's on-time events into late ones; the timeout is now 60 s,
+  so after traffic stops the last windows close up to a minute later.
+* Before a job's first watermark nothing is late. Late events that arrive in the
+  first moments after a fresh start (not a restore) are counted into windows that
+  would otherwise have closed long ago.
