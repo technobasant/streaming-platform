@@ -53,15 +53,23 @@ def compare(ids: Iterable[str], expected: set[str]) -> Layer:
 
 
 def scan_topic(
-    settings: Settings, topic: str, prefix: str, headers: bool = False
+    settings: Settings,
+    topic: str,
+    prefix: str,
+    headers: bool = False,
+    isolation: str = "read_committed",
 ) -> list[tuple[str, dict[str, str]]]:
-    """Every committed message in ``topic`` whose key starts with ``prefix``."""
+    """Every message in ``topic`` whose key starts with ``prefix``.
+
+    With ``read_uncommitted`` the scan also sees records from aborted transactions:
+    the difference between the two counts is what a restart rolled back and redid.
+    """
     consumer = Consumer(
         {
             "bootstrap.servers": settings.bootstrap,
             "group.id": f"reconcile-{prefix}",
             "enable.auto.commit": False,
-            "isolation.level": "read_committed",
+            "isolation.level": isolation,
         }
     )
     meta = consumer.list_topics(topic, timeout=10).topics[topic]
@@ -176,7 +184,18 @@ def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[
             and v.rows == len(expected) + len(ledger["duplicated"]),
         }
         clean = compare([k for k, _ in scan_topic(settings, CLEAN_TOPIC, prefix)], expected)
-        out["events.clean"] = {**clean.__dict__, "exact": clean.exact}
+        everything = scan_topic(settings, CLEAN_TOPIC, prefix, isolation="read_uncommitted")
+        out["events.clean"] = {
+            **clean.__dict__,
+            # Written inside a transaction that was then aborted (a restart), and
+            # written again after it. Never visible to read_committed consumers.
+            "aborted_and_rewritten": len(everything) - clean.rows,
+            "exact": clean.exact,
+        }
+        uncommitted_valid = len(
+            scan_topic(settings, VALID_TOPIC, prefix, isolation="read_uncommitted")
+        )
+        out["events.valid"]["aborted_and_rewritten"] = uncommitted_valid - v.rows
         dlq = scan_topic(settings, DLQ_TOPIC, run, headers=True)
         reasons = Counter(h.get("error.reason", "?") for _, h in dlq)
         out["events.dlq"] = {
