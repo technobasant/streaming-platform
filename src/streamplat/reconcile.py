@@ -58,6 +58,7 @@ def scan_topic(
     prefix: str,
     headers: bool = False,
     isolation: str = "read_committed",
+    since_ms: int = 0,
 ) -> list[tuple[str, dict[str, str]]]:
     """Every message in ``topic`` whose key starts with ``prefix``.
 
@@ -75,11 +76,20 @@ def scan_topic(
     meta = consumer.list_topics(topic, timeout=10).topics[topic]
     ends: dict[int, int] = {}
     parts = []
+    # Start each partition at the first message written at or after since_ms, so a
+    # run is reconciled without rereading every run before it.
+    starts = {
+        tp.partition: tp.offset
+        for tp in consumer.offsets_for_times(
+            [TopicPartition(topic, p, since_ms) for p in meta.partitions], timeout=10
+        )
+    }
     for p in meta.partitions:
         _, high = consumer.get_watermark_offsets(TopicPartition(topic, p), timeout=10)
-        if high > 0:
+        start = starts.get(p, -1) if since_ms else OFFSET_BEGINNING
+        if high > 0 and (start == OFFSET_BEGINNING or 0 <= start < high):
             ends[p] = high
-            parts.append(TopicPartition(topic, p, OFFSET_BEGINNING))
+            parts.append(TopicPartition(topic, p, start))
     consumer.assign(parts)
     out: list[tuple[str, dict[str, str]]] = []
     done: set[int] = set()
@@ -170,9 +180,11 @@ def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[
         "layers": {},
     }
     out = report["layers"]
+    # Kafka timestamps are write times; a minute's margin covers clock skew and lag.
+    since = int(ledger["started_at_ms"]) - 60_000
 
     if "kafka" in layers:
-        valid = [k for k, _ in scan_topic(settings, VALID_TOPIC, prefix)]
+        valid = [k for k, _ in scan_topic(settings, VALID_TOPIC, prefix, since_ms=since)]
         # The gatekeeper does not deduplicate: events.valid must hold every send.
         v = compare(valid, expected)
         out["events.valid"] = {
@@ -183,8 +195,12 @@ def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[
             and v.unexpected == 0
             and v.rows == len(expected) + len(ledger["duplicated"]),
         }
-        clean = compare([k for k, _ in scan_topic(settings, CLEAN_TOPIC, prefix)], expected)
-        everything = scan_topic(settings, CLEAN_TOPIC, prefix, isolation="read_uncommitted")
+        clean = compare(
+            [k for k, _ in scan_topic(settings, CLEAN_TOPIC, prefix, since_ms=since)], expected
+        )
+        everything = scan_topic(
+            settings, CLEAN_TOPIC, prefix, isolation="read_uncommitted", since_ms=since
+        )
         out["events.clean"] = {
             **clean.__dict__,
             # Written inside a transaction that was then aborted (a restart), and
@@ -193,10 +209,10 @@ def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[
             "exact": clean.exact,
         }
         uncommitted_valid = len(
-            scan_topic(settings, VALID_TOPIC, prefix, isolation="read_uncommitted")
+            scan_topic(settings, VALID_TOPIC, prefix, isolation="read_uncommitted", since_ms=since)
         )
         out["events.valid"]["aborted_and_rewritten"] = uncommitted_valid - v.rows
-        dlq = scan_topic(settings, DLQ_TOPIC, run, headers=True)
+        dlq = scan_topic(settings, DLQ_TOPIC, run, headers=True, since_ms=since)
         reasons = Counter(h.get("error.reason", "?") for _, h in dlq)
         out["events.dlq"] = {
             "rows": len(dlq),
@@ -204,7 +220,7 @@ def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[
             "exact": len(dlq) == poison_total,
             "reasons": dict(reasons),
         }
-        late_seen = [k for k, _ in scan_topic(settings, LATE_TOPIC, prefix)]
+        late_seen = [k for k, _ in scan_topic(settings, LATE_TOPIC, prefix, since_ms=since)]
         out["events.late"] = {
             "rows": len(late_seen),
             "unique": len(set(late_seen)),
