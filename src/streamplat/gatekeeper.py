@@ -102,6 +102,7 @@ class Gatekeeper:
                 "auto.offset.reset": "earliest",
                 "isolation.level": "read_committed",
                 "partition.assignment.strategy": "cooperative-sticky",
+                "socket.connection.setup.timeout.ms": 5000,
             }
         )
         self.producer = Producer(
@@ -112,6 +113,10 @@ class Gatekeeper:
                 "linger.ms": 5,
                 "compression.type": "lz4",
                 "transaction.timeout.ms": 60_000,
+                # The default is 30 s. When the transaction coordinator's broker died,
+                # the producer spent that long reconnecting to it before it looked
+                # for the new coordinator, and the whole pipeline waited.
+                "socket.connection.setup.timeout.ms": 5000,
             }
         )
         self.running = True
@@ -177,6 +182,9 @@ class Gatekeeper:
                 err = e.args[0]
                 if isinstance(err, KafkaError) and err.txn_requires_abort():
                     log.warning("aborting transaction: %s", err)
+                    # If the abort cannot complete either, exit: a restarted process
+                    # fences this one (init_transactions) and resumes from the last
+                    # committed offsets, which is just as exactly-once.
                     self.producer.abort_transaction()
                     ABORTS.inc()
                     self._rewind()
