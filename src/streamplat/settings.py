@@ -39,7 +39,7 @@ class Settings:
     clickhouse_user: str = _env("CLICKHOUSE_USER", "default")
     clickhouse_password: str = _env("CLICKHOUSE_PASSWORD", "lumen")
     iceberg_uri: str = _env("ICEBERG_REST_URI", "http://iceberg-rest:8181")
-    s3_endpoint: str = _env("S3_ENDPOINT", "http://minio:9000")
+    s3_endpoint: str = _env("S3_ENDPOINT", "http://seaweedfs:8333")
     s3_access_key: str = _env("AWS_ACCESS_KEY_ID", "lumen")
     s3_secret_key: str = _env("AWS_SECRET_ACCESS_KEY", "lumen-lab-only")
 

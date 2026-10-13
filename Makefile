@@ -1,5 +1,5 @@
 # make up demo down — Kafka (3 brokers), Schema Registry, Flink (1 JM + 2 TM),
-# ClickHouse, Iceberg on MinIO, Prometheus and Grafana; one container per node.
+# ClickHouse, Iceberg on SeaweedFS S3, Prometheus and Grafana; one container per node.
 COMPOSE := docker compose
 RUN := $(COMPOSE) run --rm --no-deps -T
 RUNS ?= 3

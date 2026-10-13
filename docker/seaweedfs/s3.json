@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "lumen",
+      "credentials": [{ "accessKey": "lumen", "secretKey": "lumen-lab-only" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

@@ -18,7 +18,7 @@ ADD --checksum=sha256:f6a800a159f918670db533606d33560d6c13b7e13f14eda493280ae33b
 ADD --checksum=sha256:042aba3347f52c332a7f57fae0249d003cd3deac6f5cb8022d7891e7b06ca6f9 \
     ${MVN}/org/apache/flink/flink-metrics-prometheus/1.20.2/flink-metrics-prometheus-1.20.2.jar /opt/flink/lib/
 
-# Checkpoints go to MinIO through the Presto S3 filesystem, loaded as a plugin.
+# Checkpoints go to S3 (SeaweedFS) through the Presto S3 filesystem, loaded as a plugin.
 RUN mkdir -p /opt/flink/plugins/s3-fs-presto \
  && cp /opt/flink/opt/flink-s3-fs-presto-1.20.2.jar /opt/flink/plugins/s3-fs-presto/ \
  && chmod 644 /opt/flink/lib/*.jar
