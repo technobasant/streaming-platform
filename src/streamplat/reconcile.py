@@ -12,6 +12,7 @@ import json
 from array import array
 from collections import Counter
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -106,6 +107,8 @@ def scan_topic(
             "group.id": f"reconcile-{prefix}",
             "enable.auto.commit": False,
             "isolation.level": isolation,
+            # The default pre-fetch queue is 64 MB per consumer; a scan does not need it.
+            "queued.max.messages.kbytes": 8192,
         }
     )
     meta = consumer.list_topics(topic, timeout=10).topics[topic]
@@ -185,7 +188,7 @@ def ch_seqs(ch: Any, table: str, prefix: str, final: bool) -> NDArray[np.int64]:
     return np.asarray(result[:, 0] if result.size else result, dtype=np.int64).reshape(-1)
 
 
-def iceberg_seqs(settings: Settings, prefix: str) -> NDArray[np.int64]:
+def iceberg_seqs(settings: Settings, prefix: str, since_ms: int) -> NDArray[np.int64]:
     import pyarrow.compute as pc
     from pyiceberg.catalog import load_catalog
 
@@ -202,10 +205,39 @@ def iceberg_seqs(settings: Settings, prefix: str) -> NDArray[np.int64]:
         },
     )
     table = catalog.load_table(ICEBERG_TABLE)
-    scan = table.scan(row_filter=f"event_id LIKE '{prefix}%'", selected_fields=("event_id",))
+    # The event-time bound lets Iceberg skip every data file written before the run
+    # (file-level min/max statistics); without it each reconcile read the whole table.
+    since = datetime.fromtimestamp(since_ms / 1000, tz=UTC).strftime("%Y-%m-%dT%H:%M:%S")
+    scan = table.scan(
+        row_filter=f"event_id LIKE '{prefix}%' AND event_time >= '{since}'",
+        selected_fields=("event_id",),
+    )
     ids = scan.to_arrow().column("event_id")
     seqs = pc.cast(pc.utf8_slice_codeunits(ids, len(prefix)), "int64")
     return np.asarray(seqs.to_numpy(zero_copy_only=False), dtype=np.int64)
+
+
+GROUP_OF = {
+    "events.valid": "kafka",
+    "events.clean": "kafka",
+    "events.dlq": "kafka",
+    "events.late": "kafka",
+    "clickhouse.events": "clickhouse",
+    "windows_vs_late": "clickhouse",
+    "clickhouse.dlq": "clickhouse",
+    "iceberg.events": "iceberg",
+}
+
+
+def failing_groups(report: dict[str, Any]) -> list[str]:
+    """The layer groups to read again: those with any layer not yet exact."""
+    return sorted(
+        {
+            GROUP_OF[name]
+            for name, layer in report["layers"].items()
+            if not layer.get("exact", layer.get("matches_ledger", True))
+        }
+    )
 
 
 def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[str, Any]:
@@ -314,7 +346,8 @@ def reconcile(settings: Settings, ledger_path: Path, layers: list[str]) -> dict[
         out["clickhouse.dlq"] = {"rows": int(dlq_rows), "exact": int(dlq_rows) == n_poison}
 
     if "iceberg" in layers:
-        ice = tally(iceberg_seqs(settings, prefix), ledger)
+        # Late events carry event times up to 5 minutes before the run started.
+        ice = tally(iceberg_seqs(settings, prefix, since - 600_000), ledger)
         out["iceberg.events"] = {**ice.__dict__, "exact": ice.exact}
 
     report["exact"] = all(bool(v.get("exact", v.get("matches_ledger", True))) for v in out.values())

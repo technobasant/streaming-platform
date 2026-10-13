@@ -15,6 +15,7 @@ The exporter also reports consumer lag per group and under-replicated partitions
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -161,6 +162,19 @@ class Exporter:
         OLDEST.set((now_ms - oldest) / 1000)
 
     def check_kafka(self) -> None:
+        # Replication first: during a broker failure the lag queries below can each
+        # wait out their timeout, and this is the number that matters then.
+        try:
+            futures = self.admin.describe_topics(TopicCollection(WATCHED_TOPICS), request_timeout=3)
+            urp = offline = 0
+            for fut in futures.values():
+                for p in fut.result().partitions:
+                    urp += len(p.isr) < len(p.replicas)
+                    offline += p.leader is None
+            URP.set(urp)
+            OFFLINE.set(offline)
+        except Exception as e:
+            log.debug("describe_topics: %s", e)
         for group, topic in GROUPS.items():
             try:
                 meta = self.offsets.list_topics(topic, timeout=5).topics[topic]
@@ -176,35 +190,28 @@ class Exporter:
                     )
                     lag += high - tp.offset if tp.offset >= 0 else high
                 LAG.labels(group, topic).set(lag)
-            except Exception as e:  # a broker being down must not stop the probes
+            except Exception as e:
                 log.debug("lag for %s: %s", group, e)
-        try:
-            futures = self.admin.describe_topics(TopicCollection(WATCHED_TOPICS), request_timeout=5)
-            urp = offline = 0
-            for fut in futures.values():
-                for p in fut.result().partitions:
-                    urp += len(p.isr) < len(p.replicas)
-                    offline += p.leader is None
-            URP.set(urp)
-            OFFLINE.set(offline)
-        except Exception as e:
-            log.debug("describe_topics: %s", e)
+
+    def kafka_loop(self) -> None:
+        while True:
+            started = time.monotonic()
+            self.check_kafka()
+            time.sleep(max(0.0, 5 - (time.monotonic() - started)))
 
     def run(self) -> None:
+        # Kafka health on its own thread: its admin calls can block for seconds while a
+        # broker is down, and the probes must keep their 5 s schedule regardless.
+        threading.Thread(target=self.kafka_loop, daemon=True).start()
         next_probe = time.monotonic()
-        next_kafka = time.monotonic()
         while True:
-            now = time.monotonic()
-            if now >= next_probe:
+            if time.monotonic() >= next_probe:
                 self.send_probe()
                 next_probe += self.interval_s
             try:
                 self.check_probes()
             except Exception as e:
                 log.warning("probe check failed: %s", e)
-            if now >= next_kafka:
-                self.check_kafka()
-                next_kafka = now + 5
             time.sleep(0.5)
 
 

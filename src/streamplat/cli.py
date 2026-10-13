@@ -91,11 +91,14 @@ def main(argv: list[str] | None = None) -> int:
 
         layers = args.layers.split(",")
         deadline = time.time() + args.wait
-        while True:
-            report = reconcile.reconcile(settings, args.ledger, layers)
-            if report["exact"] or time.time() >= deadline:
-                break
+        report = reconcile.reconcile(settings, args.ledger, layers)
+        # Windows close and ClickHouse flushes a little after the run: read again,
+        # but only the groups of layers that are not exact yet.
+        while not report["exact"] and time.time() < deadline:
             time.sleep(5)
+            again = reconcile.reconcile(settings, args.ledger, reconcile.failing_groups(report))
+            report["layers"].update(again["layers"])
+            report["exact"] = not reconcile.failing_groups(report)
         print(json.dumps(report, indent=1))
         return 0 if report["exact"] else 1
     elif args.cmd == "latency":
