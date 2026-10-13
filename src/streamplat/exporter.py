@@ -34,6 +34,8 @@ from prometheus_client import Counter, Gauge, Histogram, start_http_server
 from .registry import Encoder, Registry
 from .settings import (
     CLEAN_TOPIC,
+    DLQ_TOPIC,
+    LATE_TOPIC,
     RAW_TOPIC,
     SESSIONS_TOPIC,
     SUBJECT,
@@ -66,6 +68,11 @@ GROUPS = {
     "flink-clean": VALID_TOPIC,
     "flink-windows": CLEAN_TOPIC,
     "clickhouse-events": CLEAN_TOPIC,
+    # The sparse topics too: a stuck consumer here shows up nowhere else.
+    "clickhouse-dlq": DLQ_TOPIC,
+    "clickhouse-late": LATE_TOPIC,
+    "clickhouse-windows": WINDOWS_TOPIC,
+    "clickhouse-sessions": SESSIONS_TOPIC,
 }
 WATCHED_TOPICS = [RAW_TOPIC, VALID_TOPIC, CLEAN_TOPIC, WINDOWS_TOPIC, SESSIONS_TOPIC]
 
