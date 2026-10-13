@@ -1,0 +1,25 @@
+<clickhouse>
+    <!-- The Kafka engine reads only committed transactions: Flink's exactly-once sink
+         writes inside transactions, and an aborted one must never become a row. -->
+    <kafka>
+        <isolation_level>read_committed</isolation_level>
+        <auto_offset_reset>smallest</auto_offset_reset>
+    </kafka>
+    <prometheus>
+        <endpoint>/metrics</endpoint>
+        <port>9363</port>
+        <metrics>true</metrics>
+        <events>true</events>
+        <asynchronous_metrics>true</asynchronous_metrics>
+    </prometheus>
+    <logger>
+        <level>information</level>
+        <console>1</console>
+    </logger>
+    <!-- Sized for a 1.5 GB container; the system log tables are the first to go. -->
+    <mark_cache_size>268435456</mark_cache_size>
+    <trace_log remove="1"/>
+    <text_log remove="1"/>
+    <asynchronous_metric_log remove="1"/>
+    <metric_log remove="1"/>
+</clickhouse>

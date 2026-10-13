@@ -1,0 +1,54 @@
+# SLO: 99% of freshness probes are queryable in ClickHouse within 15 s of their event
+# time. Error budget: 1%.
+#
+# Multi-window, multi-burn-rate alerts (Google SRE Workbook, ch. 5). The production
+# windows are 1h/5m at 14.4x (page) and 6h/30m at 6x (page). Here every window is
+# divided by 12 so that a stalled job pages within minutes in a demo:
+#   fast: 5m and 25s at 14.4x    slow: 30m and 2m30s at 6x
+# A probe is resolved once — when it lands, or when it passes 15 s without landing —
+# so a stall shows up as bad probes 15 s after it starts. With no resolved probes the
+# ratio is NaN and nothing fires; FreshnessProbeSilent covers that case.
+groups:
+  - name: freshness-sli
+    rules:
+      - record: sp:freshness_error_ratio:rate25s
+        expr: (sum(increase(sp_freshness_probes_total[25s])) - sum(increase(sp_freshness_probes_good_total[25s]))) / sum(increase(sp_freshness_probes_total[25s]))
+      - record: sp:freshness_error_ratio:rate5m
+        expr: (sum(increase(sp_freshness_probes_total[5m])) - sum(increase(sp_freshness_probes_good_total[5m]))) / sum(increase(sp_freshness_probes_total[5m]))
+      - record: sp:freshness_error_ratio:rate150s
+        expr: (sum(increase(sp_freshness_probes_total[150s])) - sum(increase(sp_freshness_probes_good_total[150s]))) / sum(increase(sp_freshness_probes_total[150s]))
+      - record: sp:freshness_error_ratio:rate30m
+        expr: (sum(increase(sp_freshness_probes_total[30m])) - sum(increase(sp_freshness_probes_good_total[30m]))) / sum(increase(sp_freshness_probes_total[30m]))
+
+  - name: freshness-slo-alerts
+    rules:
+      - alert: FreshnessBudgetFastBurn
+        expr: |
+          sp:freshness_error_ratio:rate5m > (14.4 * 0.01)
+          and
+          sp:freshness_error_ratio:rate25s > (14.4 * 0.01)
+        labels: { severity: page, slo: freshness }
+        annotations:
+          summary: "Freshness error budget burning at >14.4x: ClickHouse is falling behind"
+          description: "Probe error ratio {{ $value | humanizePercentage }} over 5m (compressed 1h window)."
+      - alert: FreshnessBudgetSlowBurn
+        expr: |
+          sp:freshness_error_ratio:rate30m > (6 * 0.01)
+          and
+          sp:freshness_error_ratio:rate150s > (6 * 0.01)
+        labels: { severity: page, slo: freshness }
+        annotations:
+          summary: "Freshness error budget burning at >6x"
+      - alert: FreshnessProbeSilent
+        expr: sum(rate(sp_freshness_probes_sent_total[1m])) == 0 or absent(sp_freshness_probes_sent_total)
+        for: 1m
+        labels: { severity: page, slo: freshness }
+        annotations:
+          summary: "No freshness probes are being sent: the SLI is blind"
+      # Not an SLO alert: a cause, for the dashboard and the runbook.
+      - alert: UnderReplicatedPartitions
+        expr: sp_under_replicated_partitions > 0
+        for: 30s
+        labels: { severity: ticket }
+        annotations:
+          summary: "{{ $value }} partitions below their replication factor"
