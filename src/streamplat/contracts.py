@@ -39,7 +39,7 @@ def check(settings: Settings) -> dict[str, Any]:
             reg.register(subject, schema)
             entry["register"] = "ACCEPTED"
         except RegistryError as e:
-            entry["register"] = {"status": e.status, "error_code": e.code, "message": e.message}
+            entry["register"] = {"status": e.status, "message": e.message[:160]}
         entry["register_ms"] = round((time.perf_counter() - t0) * 1000, 1)
         try:
             Encoder(reg, subject, schema)
