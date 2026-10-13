@@ -5,7 +5,12 @@
 -- Windows drop late records; the third statement is what keeps them from vanishing.
 
 SET 'pipeline.name' = 'windows';
-SET 'parallelism.default' = '2';
+-- One subtask, so that the late-event filter and the window operators see the same
+-- watermark. With two, the windows take the minimum of both source subtasks while
+-- the filter sees only its own; when they differ an event is both counted in a
+-- window and routed to events.late. A broker kill made that happen 452 times in one
+-- run. (The Kafka connector 3.4 has no scan.parallelism to pin just the source.)
+SET 'parallelism.default' = '1';
 -- Window and session state is small and short-lived: keep it on the heap. With
 -- RocksDB, the cluster default, this job topped out near 2,800 events/s.
 SET 'state.backend.type' = 'hashmap';
