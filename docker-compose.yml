@@ -221,10 +221,18 @@ services:
 
   exporter:
     <<: *tools
-    command: ["exporter", "--interval", "5", "--threshold", "15"]
+    command: ["exporter", "--role", "probe", "--interval", "5", "--threshold", "15"]
     restart: unless-stopped
     depends_on:
       clickhouse: { condition: service_healthy }
+
+  # Lag and replication, apart from the probe: see KafkaHealth in exporter.py.
+  kafka-exporter:
+    <<: *tools
+    command: ["exporter", "--role", "kafka"]
+    restart: unless-stopped
+    depends_on:
+      init: { condition: service_completed_successfully }
 
   # Not started by `up`: `make demo` and the experiments run it with their own flags.
   generator:

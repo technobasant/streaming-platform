@@ -22,6 +22,7 @@ def main(argv: list[str] | None = None) -> int:
     ex = sub.add_parser("exporter", help="run the freshness probe and Kafka health exporter")
     ex.add_argument("--interval", type=float, default=5.0)
     ex.add_argument("--threshold", type=float, default=15.0)
+    ex.add_argument("--role", choices=["probe", "kafka"], default="probe")
 
     g = sub.add_parser("generate", help="send the seeded storefront at a fixed rate")
     g.add_argument("--rate", type=float, default=1000)
@@ -59,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "exporter":
         from . import exporter
 
-        exporter.main(settings, args.interval, args.threshold)
+        exporter.main(settings, args.role, args.interval, args.threshold)
     elif args.cmd == "generate":
         from . import generator
 

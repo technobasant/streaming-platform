@@ -15,7 +15,6 @@ The exporter also reports consumer lag per group and under-replicated partitions
 from __future__ import annotations
 
 import logging
-import threading
 import time
 import uuid
 from dataclasses import dataclass
@@ -30,7 +29,7 @@ from confluent_kafka import (
     TopicPartition,
 )
 from confluent_kafka.admin import AdminClient
-from prometheus_client import Counter, Gauge, Histogram, start_http_server
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram, start_http_server
 
 from .registry import Encoder, Registry
 from .settings import (
@@ -103,19 +102,16 @@ def probe_record(event_id: str, now_ms: int) -> dict[str, Any]:
     }
 
 
-class Exporter:
+class Prober:
+    """The freshness SLI: send probes, watch ClickHouse for them."""
+
     def __init__(self, settings: Settings, interval_s: float, threshold_s: float) -> None:
         self.interval_s = interval_s
         self.threshold_ms = int(threshold_s * 1000)
         THRESHOLD.set(threshold_s)
-        self.settings = settings
         self.encoder = Encoder(Registry(settings.registry_url), SUBJECT, load_contract())
         self.producer = Producer(
             {"bootstrap.servers": settings.bootstrap, "enable.idempotence": True, "linger.ms": 0}
-        )
-        self.admin = AdminClient({"bootstrap.servers": settings.bootstrap})
-        self.offsets = Consumer(
-            {"bootstrap.servers": settings.bootstrap, "group.id": "exporter-offsets"}
         )
         self.ch = clickhouse_connect.get_client(
             host=settings.clickhouse_host,
@@ -161,6 +157,34 @@ class Exporter:
         oldest = min((p.sent_ms for p in self.outstanding.values()), default=now_ms)
         OLDEST.set((now_ms - oldest) / 1000)
 
+    def run(self) -> None:
+        next_probe = time.monotonic()
+        while True:
+            if time.monotonic() >= next_probe:
+                self.send_probe()
+                next_probe += self.interval_s
+            try:
+                self.check_probes()
+            except Exception as e:
+                log.warning("probe check failed: %s", e)
+            time.sleep(0.5)
+
+
+class KafkaHealth:
+    """Consumer lag and replication state.
+
+    A separate process from the prober, deliberately: while a broker was down,
+    librdkafka aborted inside an admin request (``rd_kafka_enq_once_del_source_return:
+    Assertion `eonce->refcnt > 0' failed``) and took the process with it. A crash
+    here must not silence the SLI.
+    """
+
+    def __init__(self, settings: Settings) -> None:
+        self.admin = AdminClient({"bootstrap.servers": settings.bootstrap})
+        self.offsets = Consumer(
+            {"bootstrap.servers": settings.bootstrap, "group.id": "exporter-offsets"}
+        )
+
     def check_kafka(self) -> None:
         # Replication first: during a broker failure the lag queries below can each
         # wait out their timeout, and this is the number that matters then.
@@ -199,23 +223,19 @@ class Exporter:
             self.check_kafka()
             time.sleep(max(0.0, 5 - (time.monotonic() - started)))
 
-    def run(self) -> None:
-        # Kafka health on its own thread: its admin calls can block for seconds while a
-        # broker is down, and the probes must keep their 5 s schedule regardless.
-        threading.Thread(target=self.kafka_loop, daemon=True).start()
-        next_probe = time.monotonic()
-        while True:
-            if time.monotonic() >= next_probe:
-                self.send_probe()
-                next_probe += self.interval_s
-            try:
-                self.check_probes()
-            except Exception as e:
-                log.warning("probe check failed: %s", e)
-            time.sleep(0.5)
 
-
-def main(settings: Settings, interval_s: float, threshold_s: float, port: int = 9108) -> None:
+def main(
+    settings: Settings, role: str, interval_s: float, threshold_s: float, port: int = 9108
+) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    # Each role exports only its own metrics, so no series is duplicated as zeros.
+    other = (
+        (PROBES, GOOD, SENT, LATENCY, OLDEST, THRESHOLD) if role == "kafka" else (LAG, URP, OFFLINE)
+    )
+    for metric in other:
+        REGISTRY.unregister(metric)
     start_http_server(port)
-    Exporter(settings, interval_s, threshold_s).run()
+    if role == "kafka":
+        KafkaHealth(settings).kafka_loop()
+    else:
+        Prober(settings, interval_s, threshold_s).run()
