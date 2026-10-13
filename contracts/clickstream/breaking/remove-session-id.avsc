@@ -1,0 +1,106 @@
+{
+  "type": "record",
+  "name": "ClickstreamEvent",
+  "namespace": "com.lumenandloom.clickstream",
+  "doc": "One shopper interaction on the Lumen & Loom storefront, from the web app or the public API.",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string",
+      "doc": "Unique per event; producers may resend it, consumers deduplicate on it."
+    },
+    {
+      "name": "event_type",
+      "type": {
+        "type": "enum",
+        "name": "EventType",
+        "symbols": [
+          "PAGE_VIEW",
+          "ADD_TO_CART",
+          "CHECKOUT_STARTED",
+          "PAYMENT_SUCCEEDED",
+          "PAYMENT_FAILED"
+        ]
+      }
+    },
+    {
+      "name": "event_time",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      },
+      "doc": "When it happened on the client, UTC. Not when it arrived."
+    },
+    {
+      "name": "customer_id",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null,
+      "doc": "Null while the shopper is anonymous."
+    },
+    {
+      "name": "client",
+      "type": {
+        "type": "enum",
+        "name": "Client",
+        "symbols": [
+          "WEB",
+          "API"
+        ]
+      }
+    },
+    {
+      "name": "page",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "product_id",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "quantity",
+      "type": [
+        "null",
+        "int"
+      ],
+      "default": null
+    },
+    {
+      "name": "order_id",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null
+    },
+    {
+      "name": "amount_cents",
+      "type": [
+        "null",
+        "long"
+      ],
+      "default": null
+    },
+    {
+      "name": "currency",
+      "type": "string",
+      "default": "USD"
+    },
+    {
+      "name": "is_probe",
+      "type": "boolean",
+      "default": false,
+      "doc": "Synthetic freshness probe; excluded from every business table."
+    }
+  ]
+}
