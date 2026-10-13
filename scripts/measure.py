@@ -22,6 +22,8 @@ from typing import Any
 import httpx
 
 ROOT = Path(__file__).resolve().parents[1]
+# Run ids must never repeat: the ClickHouse checks select a run by its id prefix.
+SESSION = time.strftime("%H%M")
 RESULTS = ROOT / "results"
 FLINK = "http://localhost:18081"
 PROM = "http://localhost:19090"
@@ -168,7 +170,7 @@ def exp_load(runs: int, rates: list[int], duration: int) -> None:
     done = {r["latency"]["run_id"] for r in out}
     for rate in rates:
         for i in range(runs):
-            run_id = f"load{rate}x{i}"
+            run_id = f"load{SESSION}r{rate}x{i}"
             if run_id in done:
                 continue
             g = Generator(run_id, rate, duration)
@@ -217,7 +219,7 @@ def exp_broker_kill(runs: int, rate: int) -> None:
     for i in range(runs):
         settle()
         victim = f"kafka-{controller_leader()}"
-        run_id = f"bkill{i}"
+        run_id = f"bkill{SESSION}x{i}"
         g = Generator(run_id, rate, 100)
         g.start()
         time.sleep(30)
@@ -311,7 +313,7 @@ def exp_tm_kill(runs: int, rate: int) -> None:
     for i in range(runs):
         settle()
         victim, busy_slots = busiest_tm()
-        run_id = f"tmkill{i}"
+        run_id = f"tmkill{SESSION}x{i}"
         g = Generator(run_id, rate, 90)
         g.start()
         time.sleep(30)
@@ -379,7 +381,7 @@ def exp_stall(runs: int, rate: int, hold: int) -> None:
     tms = ["taskmanager-1", "taskmanager-2"]
     for i in range(runs):
         settle()
-        run_id = f"stall{i}"
+        run_id = f"stall{SESSION}x{i}"
         g = Generator(run_id, rate, 60 + hold + 120)
         g.start()
         time.sleep(60)
@@ -428,7 +430,8 @@ def exp_contract(runs: int) -> None:
     # A producer built on a breaking schema, against the live subject.
     r = subprocess.run(
         [*COMPOSE, "run", "--rm", "--no-deps", "-T", "gatekeeper", "generate", "--rate", "10",
-         "--duration", "5", "--run-id", "breaking", "--schema", "breaking/add-required-field.avsc"],
+         "--duration", "5", "--run-id", f"breaking{SESSION}",
+         "--schema", "breaking/add-required-field.avsc"],
         cwd=ROOT, capture_output=True, text=True,
     )  # fmt: skip
     errors = [ln for ln in r.stderr.splitlines() if "RegistryError" in ln or "HTTP 4" in ln]
@@ -456,10 +459,10 @@ def exp_v2_rollout(rate: int) -> None:
     reg = httpx.Client(base_url="http://localhost:18085", timeout=10, headers=ct)
     v2 = (ROOT / "contracts" / "clickstream" / "v2.avsc").read_text()
     r = reg.post("/subjects/clickstream.raw-value/versions", json={"schema": v2})
-    g = Generator("v2roll", rate, 30, "--schema", "v2.avsc")
+    g = Generator(f"v2roll{SESSION}", rate, 30, "--schema", "v2.avsc")
     g.start()
     g.join()
-    rec = reconcile("v2roll")
+    rec = reconcile(f"v2roll{SESSION}")
     save("v2-rollout", [rec], {"registered": r.json(), "exact": rec["exact"],
                                 "dlq": rec["layers"]["events.dlq"]})  # fmt: skip
 
@@ -496,7 +499,7 @@ def exp_query(runs: int, rate: int, repeats: int = 20) -> None:
     out: list[dict[str, Any]] = []
     for i in range(runs):
         settle()
-        g = Generator(f"query{i}", rate, 120)
+        g = Generator(f"query{SESSION}x{i}", rate, 120)
         g.start()
         time.sleep(60)
         rows = int(ch_query("SELECT count() FROM lumen.events")[0])
