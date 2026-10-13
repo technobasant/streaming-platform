@@ -68,7 +68,7 @@ x-tools: &tools
     context: .
     dockerfile: docker/tools/Dockerfile
   image: sp-tools:0.1.0
-  mem_limit: 300m
+  mem_limit: 768m  # the reconciler holds a run's event ids in memory
   environment: &tools-env
     KAFKA_BOOTSTRAP: kafka-1:9092,kafka-2:9092,kafka-3:9092
     SCHEMA_REGISTRY_URL: http://schema-registry:8081

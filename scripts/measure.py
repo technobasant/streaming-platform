@@ -62,9 +62,18 @@ class Generator(threading.Thread):
 
 
 def reconcile(run_id: str, wait: int = 240) -> dict[str, Any]:
-    out = tools("reconcile", f"runs/{run_id}.json", "--wait", str(wait), check=False)
-    report: dict[str, Any] = json.loads(out)
-    return report
+    for attempt in range(3):
+        r = subprocess.run(
+            [*COMPOSE, "run", "--rm", "--no-deps", "-T", "-v", f"{ROOT}/runs:/app/runs",
+             "gatekeeper", "reconcile", f"runs/{run_id}.json", "--wait", str(wait)],
+            cwd=ROOT, capture_output=True, text=True,
+        )  # fmt: skip
+        try:
+            report: dict[str, Any] = json.loads(r.stdout)
+            return report
+        except json.JSONDecodeError:
+            print(f"reconcile {run_id} attempt {attempt}: {r.stderr[-800:]}", file=sys.stderr)
+    raise RuntimeError(f"reconcile {run_id} failed three times")
 
 
 def latency(run_id: str) -> dict[str, Any]:
@@ -152,19 +161,32 @@ def med(xs: list[float | None]) -> float | None:
 
 # --------------------------------------------------------------------------- load
 def exp_load(runs: int, rates: list[int], duration: int) -> None:
-    out: list[dict[str, Any]] = []
+    # Resumable: runs already in results/load.json are kept, and a run whose ledger
+    # exists (generated, then the script died) is reconciled without resending.
+    path = RESULTS / "load.json"
+    out: list[dict[str, Any]] = json.loads(path.read_text())["runs"] if path.exists() else []
+    done = {r["latency"]["run_id"] for r in out}
     for rate in rates:
         for i in range(runs):
-            settle()
             run_id = f"load{rate}x{i}"
+            if run_id in done:
+                continue
             g = Generator(run_id, rate, duration)
-            g.start()
-            g.join()
+            if not (ROOT / "runs" / f"{run_id}.json").exists():
+                settle()
+                g.start()
+                g.join()
             rec = reconcile(run_id)
             lat = latency(run_id)
             out.append({"rate": rate, "generator": g.summary, "latency": lat, "exact": rec["exact"],
                         "layers": layers_exact(rec), "reconcile": rec})  # fmt: skip
             print(rate, i, lat, rec["exact"], file=sys.stderr)
+            save("load", out, _load_summary(out))
+    save("load", out, _load_summary(out))
+
+
+def _load_summary(out: list[dict[str, Any]]) -> dict[str, Any]:
+    rates = sorted({r["rate"] for r in out})
     summary = {}
     for rate in rates:
         rs = [r for r in out if r["rate"] == rate]
@@ -177,7 +199,7 @@ def exp_load(runs: int, rates: list[int], duration: int) -> None:
             "max_s": max(r["latency"]["max_s"] for r in rs),
             "all_exact": all(r["exact"] for r in rs),
         }
-    save("load", out, summary)
+    return summary
 
 
 # --------------------------------------------------------------------- broker kill
@@ -271,11 +293,24 @@ def tm_offsets(service: str) -> dict[tuple[str, str], tuple[float, float]]:
     return {k: (cur[k], com.get(k, 0.0)) for k in cur}
 
 
+def busiest_tm() -> tuple[str, int]:
+    """The TaskManager service running the most slots, and how many it runs."""
+    tms = httpx.get(f"{FLINK}/taskmanagers", timeout=10).json()["taskmanagers"]
+    tm = max(tms, key=lambda t: t["slotsNumber"] - t["freeSlots"])
+    ip = tm["id"].split(":")[0]
+    for service in ("taskmanager-1", "taskmanager-2"):
+        cid = sh(*COMPOSE, "ps", "-q", service).strip()
+        fmt = "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}"
+        if cid and sh("docker", "inspect", "-f", fmt, cid).strip() == ip:
+            return service, tm["slotsNumber"] - tm["freeSlots"]
+    raise RuntimeError(f"no TaskManager container has IP {ip}")
+
+
 def exp_tm_kill(runs: int, rate: int) -> None:
     out: list[dict[str, Any]] = []
     for i in range(runs):
         settle()
-        victim = "taskmanager-1"
+        victim, busy_slots = busiest_tm()
         run_id = f"tmkill{i}"
         g = Generator(run_id, rate, 90)
         g.start()
@@ -311,7 +346,8 @@ def exp_tm_kill(runs: int, rate: int) -> None:
         rec = reconcile(run_id)
         lat = latency(run_id)
         out.append({
-            "victim": victim, "kill_at_s": round(t_kill - g.started, 1),
+            "victim": victim, "victim_busy_slots": busy_slots,
+            "kill_at_s": round(t_kill - g.started, 1),
             "failure_noticed_s": noticed, "all_tasks_running_s": running,
             "jobs": restored,
             "clean_source_records_since_last_checkpoint": in_flight,
