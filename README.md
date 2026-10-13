@@ -20,7 +20,23 @@ steady state, through a broker kill, through a TaskManager kill, and through a s
 
 ## What the runs showed
 
-RESULTS_TABLE
+All figures come from [MEASUREMENTS.md](MEASUREMENTS.md), which has the method, the
+environment and every run. Medians of three runs unless stated.
+
+| Question | Measured |
+|---|---|
+| Is anything lost or counted twice? | Steady state: 9 runs, 2.7 million unique events with every fault injected — **every layer exact**: Kafka, ClickHouse, Iceberg, dead-letter topic and table, late side output, window counts |
+| …through failures? | **Every event layer exact** through 3 broker kills (the active controller each time), 3 TaskManager kills and 3 150-second stalls. Restarts rewrote 658–7,522 records that aborted transactions had written; no `read_committed` reader saw them |
+| How fresh is ClickHouse? | Event time to queryable: p50 3.4 / 3.7 / 4.9 s and p99 6.1 / 6.6 / 9.1 s at 1,000 / 3,000 / 6,000 events/s. The floor is the 5 s checkpoint interval; 6,000/s is close to the deduplicating job's limit |
+| Does a stalled pipeline page? | Both TaskManagers frozen: the fast-burn alert fired **59–62 s** in and cleared about 45 s after they resumed |
+| What does a broker kill cost? | 0 failed sends; writes paused about 10 s until the dead broker left the ISRs. In one run it was the gate's transaction coordinator, and the pipeline waited ~70 s (the fix is not yet re-measured) |
+| What does a TaskManager kill cost? | Noticed in 8–9 s, state restored 10–13 s after the kill, every task running again after 14–63 s |
+| Is bad data contained? | The dead-letter queue held exactly the injected poison in every run. Three breaking schema changes refused with HTTP 409 and the field named; a producer on an unregistered schema cannot send; a v2 rollout, 29,970 events, none refused |
+| Where is it weakest? | **The window aggregates under failure.** Every failure moved on-time events to the late side output — up to 40% of one broker-kill run — because catching up reorders partitions beyond the 5 s watermark bound; and two restores lost 95–276 late events from both windows and side output (they remain in the raw table and the lake) |
+| Does it stay that way? | Not quite: after about four hours of experiments, two 1,000/s runs had p99 of 23–25 s instead of 6 s, with checkpoints stretching to 32 s and SeaweedFS at its 512 MB memory cap. Not root-caused yet |
+| How fast are queries on fresh data? | p50 8–26 ms, p95 30–84 ms for five dashboard queries on 6 million rows while ingesting 2,000 events/s |
+
+Each failure here changed the design; the [failure log](#failure-log) lists what and where.
 
 ## Architecture
 
@@ -67,7 +83,18 @@ make down
 
 `make demo` ends with the reconciler's report, abridged:
 
-DEMO_OUTPUT
+```
+ledger             29,999 events · 29 poison · 313 late · 1,487 out of order · 599 resent
+events.valid       rows 30,569  unique 29,970  missing 0  unexpected 0   exact
+events.clean       rows 29,970  unique 29,970  missing 0  unexpected 0   exact
+events.dlq         rows 29   exact
+events.late        rows 313   exact
+clickhouse.events  rows 29,970  unique 29,970  missing 0  unexpected 0   exact
+windows_vs_late    windows 29,657 + late 313 = 29,970   exact
+clickhouse.dlq     rows 29   exact
+iceberg.events     rows 29,970  unique 29,970  missing 0  unexpected 0   exact
+exact              true
+```
 
 Then open Grafana at http://localhost:13000 (the dashboard is the home page), Flink
 at http://localhost:18081 and Prometheus at http://localhost:19090.
@@ -94,7 +121,22 @@ make ci-local           # ruff, mypy, pytest, docker compose config
 
 What broke while building this, and what changed.
 
-FAILURE_LOG
+| What happened | Why | Fixed in |
+|---|---|---|
+| Brokers idled at ~150% CPU each | The healthcheck started a JVM every 5 s per broker; every earlier measurement was discarded | 5e7c2b0 |
+| The windows job topped out near 2,800 events/s | RocksDB access per record for small, short-lived state | f0eb519 |
+| ClickHouse's dead-letter table stopped filling; its consumer group sat in `CompletingRebalance` for 15+ min | Kafka 4.1.0's group coordinator wedged after the VM clock stepped back ([KAFKA-19888](https://issues.apache.org/jira/browse/KAFKA-19888)) | 65e3d70 |
+| A broker kill turned 1.7% of on-time events late | Stalled partitions declared idle after 10 s | 19c2903 |
+| 452 events counted both in a window and as late | The late filter and the windows saw different watermarks at parallelism 2 | 3673d7b |
+| The exporter died during broker kills; probes stopped | librdkafka 2.16.0 aborts in a timed-out admin request ([librdkafka#4605](https://github.com/confluentinc/librdkafka/issues/4605)) | 184804c |
+| The gate stalled ~70 s when its transaction coordinator died | 30 s default connection-setup timeout to the dead host | c1f5e85 (not re-measured) |
+| The reconciler was OOM-killed, twice | Every event id held as a string, several times; whole Iceberg table read per retry | bda5414, dc9a31d, 00d120a |
+| `make up` could not pull MinIO | `minio/minio` is gone from Docker Hub | 7491ca3 |
+| Anonymous Grafana viewers were denied the dashboard | Grafana 12 permissions on root-level provisioned dashboards | ab0231e |
+
+Not fixed: restoring the windows job can drop late events that arrive before its first
+new watermark (MEASUREMENTS.md, section 4). The proper fix is a side output from the
+window operator itself, which Flink SQL cannot express.
 
 ## Limits
 
@@ -105,7 +147,15 @@ FAILURE_LOG
   when Flink's transaction commits, every 5 s. Sub-second freshness needs a different
   trade (at-least-once with idempotent sinks), not tuning.
 * **One gatekeeper.** It is a single process with one `transactional.id`; it handled
-  the rates measured here, and it is the first thing to scale.
+  the rates measured here, and it is the first thing to scale. When its transaction
+  coordinator dies it can stall the whole pipeline (MEASUREMENTS.md, section 3).
+* **Aggregates under failure.** Raw events and the lake are exact through every failure
+  tested; the 10-second window counts are not — failovers and restores move on-time
+  events to the late side output, and a restore can drop late events. Treat the window
+  tables as fast and approximate during incidents, and the raw table as the record.
+* **A killed container loses its DNS name.** Docker removes it, so clients see host
+  resolution failures rather than connection timeouts — harsher than a real host
+  failure for librdkafka, which then fails a transaction outright.
 * **No compaction.** The Iceberg sink commits a snapshot per checkpoint; nothing
   rewrites the small files or expires snapshots. ClickHouse relies on `FINAL` and
   background merges for duplicate rows from its at-least-once Kafka engine.
@@ -117,6 +167,9 @@ FAILURE_LOG
 
 ## Roadmap
 
+* Late events out of the window operator itself (a DataStream stage with a side
+  output), and watermark alignment on the deduplicating job's source so that catching
+  up after a failure does not reorder partitions beyond the watermark bound.
 * Scale the gatekeeper out (one transactional id per instance), or replace it with a
   Flink DataStream stage with a side output.
 * Iceberg maintenance: compaction and snapshot expiry as scheduled Flink actions.

@@ -1,0 +1,191 @@
+{
+ "experiment": "contract",
+ "summary": {
+  "runs": 3,
+  "all_passed": true,
+  "breaking_refused_with_409": {
+   "add-required-field": true,
+   "change-amount-type": true,
+   "remove-session-id": true
+  },
+  "register_ms_median": 3.5,
+  "registry_reasons": {
+   "add-required-field": "{errorType:'READER_FIELD_MISSING_DEFAULT_VALUE', description:'The field 'channel' at path '/fields/13' in the new schema has no default value and is missing in the old schema', additionalInfo:'channel",
+   "change-amount-type": "{errorType:'MISSING_UNION_BRANCH', description:'The old schema is missing a type inside a union field at path '/fields/10/type/1' in the new schema', additionalInfo:'reader union lacking writer type: ",
+   "remove-session-id": "{errorType:'READER_FIELD_MISSING_DEFAULT_VALUE', description:'The field 'session_id' at path '/fields/3' in the old schema has no default value and is missing in the new schema', additionalInfo:'sessi"
+  },
+  "live_producer_with_breaking_schema": "exit 1: streamplat.registry.RegistryError: HTTP 404 (error_code 40403): Schema not found"
+ },
+ "environment": {
+  "docker": "29.8.2",
+  "cpus": "8",
+  "mem_bytes": "12526637056"
+ },
+ "runs": [
+  {
+   "subject": "contract-check-1791933853747-value",
+   "compatibility": "FULL_TRANSITIVE",
+   "v2_adds_optional_field": {
+    "compatible": true,
+    "messages": []
+   },
+   "breaking": {
+    "add-required-field": {
+     "compatible": false,
+     "messages": [
+      "{errorType:'READER_FIELD_MISSING_DEFAULT_VALUE', description:'The field 'channel' at path '/fields/13' in the new schema has no default value and is missing in the old schema', additionalInfo:'channel'}",
+      "{oldSchemaVersion: 1}"
+     ],
+     "register": {
+      "status": 409,
+      "message": "Schema being registered is incompatible with an earlier schema for subject \"contract-check-1791933853747-value\", details: [{errorType:'READER_FIELD_MISSING_DEFA"
+     },
+     "register_ms": 9.2,
+     "producer": "refused before sending: HTTP 404 (40403)"
+    },
+    "change-amount-type": {
+     "compatible": false,
+     "messages": [
+      "{errorType:'MISSING_UNION_BRANCH', description:'The old schema is missing a type inside a union field at path '/fields/10/type/1' in the new schema', additionalInfo:'reader union lacking writer type: STRING'}",
+      "{errorType:'MISSING_UNION_BRANCH', description:'The new schema is missing a type inside a union field at path '/fields/10/type/1' in the old schema', additionalInfo:'reader union lacking writer type: LONG'}"
+     ],
+     "register": {
+      "status": 409,
+      "message": "Schema being registered is incompatible with an earlier schema for subject \"contract-check-1791933853747-value\", details: [{errorType:'MISSING_UNION_BRANCH', de"
+     },
+     "register_ms": 3.5,
+     "producer": "refused before sending: HTTP 404 (40403)"
+    },
+    "remove-session-id": {
+     "compatible": false,
+     "messages": [
+      "{errorType:'READER_FIELD_MISSING_DEFAULT_VALUE', description:'The field 'session_id' at path '/fields/3' in the old schema has no default value and is missing in the new schema', additionalInfo:'session_id'}",
+      "{validateFields: 'false', compatibility: 'FULL_TRANSITIVE'}"
+     ],
+     "register": {
+      "status": 409,
+      "message": "Schema being registered is incompatible with an earlier schema for subject \"contract-check-1791933853747-value\", details: [{errorType:'READER_FIELD_MISSING_DEFA"
+     },
+     "register_ms": 2.7,
+     "producer": "refused before sending: HTTP 404 (40403)"
+    }
+   },
+   "v2_registers": true,
+   "versions": [
+    1,
+    2
+   ],
+   "passed": true
+  },
+  {
+   "subject": "contract-check-1791933854864-value",
+   "compatibility": "FULL_TRANSITIVE",
+   "v2_adds_optional_field": {
+    "compatible": true,
+    "messages": []
+   },
+   "breaking": {
+    "add-required-field": {
+     "compatible": false,
+     "messages": [
+      "{errorType:'READER_FIELD_MISSING_DEFAULT_VALUE', description:'The field 'channel' at path '/fields/13' in the new schema has no default value and is missing in the old schema', additionalInfo:'channel'}",
+      "{oldSchemaVersion: 1}"
+     ],
+     "register": {
+      "status": 409,
+      "message": "Schema being registered is incompatible with an earlier schema for subject \"contract-check-1791933854864-value\", details: [{errorType:'READER_FIELD_MISSING_DEFA"
+     },
+     "register_ms": 4.7,
+     "producer": "refused before sending: HTTP 404 (40403)"
+    },
+    "change-amount-type": {
+     "compatible": false,
+     "messages": [
+      "{errorType:'MISSING_UNION_BRANCH', description:'The old schema is missing a type inside a union field at path '/fields/10/type/1' in the new schema', additionalInfo:'reader union lacking writer type: STRING'}",
+      "{errorType:'MISSING_UNION_BRANCH', description:'The new schema is missing a type inside a union field at path '/fields/10/type/1' in the old schema', additionalInfo:'reader union lacking writer type: LONG'}"
+     ],
+     "register": {
+      "status": 409,
+      "message": "Schema being registered is incompatible with an earlier schema for subject \"contract-check-1791933854864-value\", details: [{errorType:'MISSING_UNION_BRANCH', de"
+     },
+     "register_ms": 3.9,
+     "producer": "refused before sending: HTTP 404 (40403)"
+    },
+    "remove-session-id": {
+     "compatible": false,
+     "messages": [
+      "{errorType:'READER_FIELD_MISSING_DEFAULT_VALUE', description:'The field 'session_id' at path '/fields/3' in the old schema has no default value and is missing in the new schema', additionalInfo:'session_id'}",
+      "{validateFields: 'false', compatibility: 'FULL_TRANSITIVE'}"
+     ],
+     "register": {
+      "status": 409,
+      "message": "Schema being registered is incompatible with an earlier schema for subject \"contract-check-1791933854864-value\", details: [{errorType:'READER_FIELD_MISSING_DEFA"
+     },
+     "register_ms": 4.3,
+     "producer": "refused before sending: HTTP 404 (40403)"
+    }
+   },
+   "v2_registers": true,
+   "versions": [
+    1,
+    2
+   ],
+   "passed": true
+  },
+  {
+   "subject": "contract-check-1791933855620-value",
+   "compatibility": "FULL_TRANSITIVE",
+   "v2_adds_optional_field": {
+    "compatible": true,
+    "messages": []
+   },
+   "breaking": {
+    "add-required-field": {
+     "compatible": false,
+     "messages": [
+      "{errorType:'READER_FIELD_MISSING_DEFAULT_VALUE', description:'The field 'channel' at path '/fields/13' in the new schema has no default value and is missing in the old schema', additionalInfo:'channel'}",
+      "{oldSchemaVersion: 1}"
+     ],
+     "register": {
+      "status": 409,
+      "message": "Schema being registered is incompatible with an earlier schema for subject \"contract-check-1791933855620-value\", details: [{errorType:'READER_FIELD_MISSING_DEFA"
+     },
+     "register_ms": 1.6,
+     "producer": "refused before sending: HTTP 404 (40403)"
+    },
+    "change-amount-type": {
+     "compatible": false,
+     "messages": [
+      "{errorType:'MISSING_UNION_BRANCH', description:'The old schema is missing a type inside a union field at path '/fields/10/type/1' in the new schema', additionalInfo:'reader union lacking writer type: STRING'}",
+      "{errorType:'MISSING_UNION_BRANCH', description:'The new schema is missing a type inside a union field at path '/fields/10/type/1' in the old schema', additionalInfo:'reader union lacking writer type: LONG'}"
+     ],
+     "register": {
+      "status": 409,
+      "message": "Schema being registered is incompatible with an earlier schema for subject \"contract-check-1791933855620-value\", details: [{errorType:'MISSING_UNION_BRANCH', de"
+     },
+     "register_ms": 1.5,
+     "producer": "refused before sending: HTTP 404 (40403)"
+    },
+    "remove-session-id": {
+     "compatible": false,
+     "messages": [
+      "{errorType:'READER_FIELD_MISSING_DEFAULT_VALUE', description:'The field 'session_id' at path '/fields/3' in the old schema has no default value and is missing in the new schema', additionalInfo:'session_id'}",
+      "{validateFields: 'false', compatibility: 'FULL_TRANSITIVE'}"
+     ],
+     "register": {
+      "status": 409,
+      "message": "Schema being registered is incompatible with an earlier schema for subject \"contract-check-1791933855620-value\", details: [{errorType:'READER_FIELD_MISSING_DEFA"
+     },
+     "register_ms": 1.5,
+     "producer": "refused before sending: HTTP 404 (40403)"
+    }
+   },
+   "v2_registers": true,
+   "versions": [
+    1,
+    2
+   ],
+   "passed": true
+  }
+ ]
+}

@@ -1,0 +1,118 @@
+{
+ "experiment": "v2-rollout",
+ "summary": {
+  "registered": {
+   "id": 5,
+   "version": 2,
+   "guid": "c5968307-bb4f-8174-5832-fc83eb439005",
+   "schemaType": "AVRO",
+   "schema": "{\"type\":\"record\",\"name\":\"ClickstreamEvent\",\"namespace\":\"com.lumenandloom.clickstream\",\"doc\":\"One shopper interaction on the Lumen & Loom storefront, from the web app or the public API.\",\"fields\":[{\"name\":\"event_id\",\"type\":\"string\",\"doc\":\"Unique per event; producers may resend it, consumers deduplicate on it.\"},{\"name\":\"event_type\",\"type\":{\"type\":\"enum\",\"name\":\"EventType\",\"symbols\":[\"PAGE_VIEW\",\"ADD_TO_CART\",\"CHECKOUT_STARTED\",\"PAYMENT_SUCCEEDED\",\"PAYMENT_FAILED\"]}},{\"name\":\"event_time\",\"type\":{\"type\":\"long\",\"logicalType\":\"timestamp-millis\"},\"doc\":\"When it happened on the client, UTC. Not when it arrived.\"},{\"name\":\"session_id\",\"type\":\"string\"},{\"name\":\"customer_id\",\"type\":[\"null\",\"string\"],\"doc\":\"Null while the shopper is anonymous.\",\"default\":null},{\"name\":\"client\",\"type\":{\"type\":\"enum\",\"name\":\"Client\",\"symbols\":[\"WEB\",\"API\"]}},{\"name\":\"page\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"product_id\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"quantity\",\"type\":[\"null\",\"int\"],\"default\":null},{\"name\":\"order_id\",\"type\":[\"null\",\"string\"],\"default\":null},{\"name\":\"amount_cents\",\"type\":[\"null\",\"long\"],\"default\":null},{\"name\":\"currency\",\"type\":\"string\",\"default\":\"USD\"},{\"name\":\"is_probe\",\"type\":\"boolean\",\"doc\":\"Synthetic freshness probe; excluded from every business table.\",\"default\":false},{\"name\":\"referrer\",\"type\":[\"null\",\"string\"],\"doc\":\"Where the shopper came from, when the client knows.\",\"default\":null}]}"
+  },
+  "exact": true,
+  "dlq": {
+   "rows": 29,
+   "injected": 29,
+   "exact": true,
+   "reasons": {
+    "rule:currency_unknown": 4,
+    "avro_decode_error": 3,
+    "schema_not_found": 8,
+    "rule:cart_quantity_not_positive": 4,
+    "not_confluent_avro": 8,
+    "rule:payment_amount_not_positive": 2
+   }
+  }
+ },
+ "environment": {
+  "docker": "29.8.2",
+  "cpus": "8",
+  "mem_bytes": "12526637056"
+ },
+ "runs": [
+  {
+   "run_id": "v2roll0509",
+   "ledger": {
+    "slots": 29999,
+    "expected_valid": 29970,
+    "poison": {
+     "rule_violation": 10,
+     "truncated": 3,
+     "unknown_schema": 8,
+     "not_avro": 8
+    },
+    "poison_total": 29,
+    "late": 313,
+    "out_of_order": 1487,
+    "duplicated": 599,
+    "producer_failed": 0
+   },
+   "layers": {
+    "events.valid": {
+     "rows": 30569,
+     "unique": 29970,
+     "missing": 0,
+     "unexpected": 0,
+     "duplicates_expected": 599,
+     "aborted_and_rewritten": 0,
+     "exact": true
+    },
+    "events.clean": {
+     "rows": 29970,
+     "unique": 29970,
+     "missing": 0,
+     "unexpected": 0,
+     "aborted_and_rewritten": 0,
+     "exact": true
+    },
+    "events.dlq": {
+     "rows": 29,
+     "injected": 29,
+     "exact": true,
+     "reasons": {
+      "rule:currency_unknown": 4,
+      "avro_decode_error": 3,
+      "schema_not_found": 8,
+      "rule:cart_quantity_not_positive": 4,
+      "not_confluent_avro": 8,
+      "rule:payment_amount_not_positive": 2
+     }
+    },
+    "events.late": {
+     "rows": 313,
+     "unique": 313,
+     "sent_late": 313,
+     "sent_late_not_in_side_output": 0,
+     "in_side_output_not_sent_late": 0,
+     "matches_ledger": true
+    },
+    "clickhouse.events": {
+     "rows": 29970,
+     "unique": 29970,
+     "missing": 0,
+     "unexpected": 0,
+     "rows_before_merge": 29970,
+     "exact": true
+    },
+    "windows_vs_late": {
+     "on_time_expected": 29657,
+     "counted_in_windows": 29657,
+     "late_expected": 313,
+     "late_side_output": 313,
+     "exact": true
+    },
+    "clickhouse.dlq": {
+     "rows": 29,
+     "exact": true
+    },
+    "iceberg.events": {
+     "rows": 29970,
+     "unique": 29970,
+     "missing": 0,
+     "unexpected": 0,
+     "exact": true
+    }
+   },
+   "exact": true
+  }
+ ]
+}

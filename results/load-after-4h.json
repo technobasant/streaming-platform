@@ -1,0 +1,265 @@
+{
+ "experiment": "load",
+ "summary": {
+  "1000": {
+   "runs": 2,
+   "achieved_send_rate": 1000.0,
+   "p50_s": 3.828,
+   "p95_s": 14.07,
+   "p99_s": 23.88,
+   "max_s": 25.858,
+   "all_exact": true
+  }
+ },
+ "environment": {
+  "docker": "29.8.2",
+  "cpus": "8",
+  "mem_bytes": "12526637056"
+ },
+ "runs": [
+  {
+   "rate": 1000,
+   "generator": {
+    "run_id": "load0517r1000x0",
+    "ledger": "runs/load0517r1000x0.json",
+    "slots": 89999,
+    "sends": 91836,
+    "acked": 91836,
+    "failed": 0,
+    "expected_valid": 89918,
+    "poison": 81,
+    "errors": {}
+   },
+   "latency": {
+    "run_id": "load0517r1000x0",
+    "n": 84487,
+    "p50_s": 4.046,
+    "p95_s": 21.381,
+    "p99_s": 24.963,
+    "max_s": 25.858,
+    "offered_rate": 1000.0,
+    "achieved_send_rate": 1000.0,
+    "sends": 91836,
+    "duration_s": 90.0
+   },
+   "exact": true,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": true,
+    "clickhouse.events": true,
+    "windows_vs_late": true,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "load0517r1000x0",
+    "ledger": {
+     "slots": 89999,
+     "expected_valid": 89918,
+     "poison": {
+      "rule_violation": 28,
+      "truncated": 15,
+      "unknown_schema": 12,
+      "not_avro": 26
+     },
+     "poison_total": 81,
+     "late": 913,
+     "out_of_order": 4518,
+     "duplicated": 1837,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 91755,
+      "unique": 89918,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 1837,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 89918,
+      "unique": 89918,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 81,
+      "injected": 81,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 12,
+       "avro_decode_error": 15,
+       "schema_not_found": 12,
+       "rule:cart_quantity_not_positive": 10,
+       "not_confluent_avro": 26,
+       "rule:payment_amount_not_positive": 6
+      }
+     },
+     "events.late": {
+      "rows": 913,
+      "unique": 913,
+      "sent_late": 913,
+      "sent_late_not_in_side_output": 0,
+      "in_side_output_not_sent_late": 0,
+      "matches_ledger": true
+     },
+     "clickhouse.events": {
+      "rows": 89918,
+      "unique": 89918,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 89918,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 89005,
+      "counted_in_windows": 89005,
+      "late_expected": 913,
+      "late_side_output": 913,
+      "exact": true
+     },
+     "clickhouse.dlq": {
+      "rows": 81,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 89918,
+      "unique": 89918,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": true
+   }
+  },
+  {
+   "rate": 1000,
+   "generator": {
+    "run_id": "load0517r1000x1",
+    "ledger": "runs/load0517r1000x1.json",
+    "slots": 89999,
+    "sends": 91836,
+    "acked": 91836,
+    "failed": 0,
+    "expected_valid": 89918,
+    "poison": 81,
+    "errors": {}
+   },
+   "latency": {
+    "run_id": "load0517r1000x1",
+    "n": 84487,
+    "p50_s": 3.61,
+    "p95_s": 6.76,
+    "p99_s": 22.797,
+    "max_s": 23.714,
+    "offered_rate": 1000.0,
+    "achieved_send_rate": 1000.0,
+    "sends": 91836,
+    "duration_s": 90.0
+   },
+   "exact": true,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": true,
+    "clickhouse.events": true,
+    "windows_vs_late": true,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "load0517r1000x1",
+    "ledger": {
+     "slots": 89999,
+     "expected_valid": 89918,
+     "poison": {
+      "rule_violation": 28,
+      "truncated": 15,
+      "unknown_schema": 12,
+      "not_avro": 26
+     },
+     "poison_total": 81,
+     "late": 913,
+     "out_of_order": 4518,
+     "duplicated": 1837,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 91755,
+      "unique": 89918,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 1837,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 89918,
+      "unique": 89918,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 81,
+      "injected": 81,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 12,
+       "avro_decode_error": 15,
+       "schema_not_found": 12,
+       "rule:cart_quantity_not_positive": 10,
+       "not_confluent_avro": 26,
+       "rule:payment_amount_not_positive": 6
+      }
+     },
+     "events.late": {
+      "rows": 913,
+      "unique": 913,
+      "sent_late": 913,
+      "sent_late_not_in_side_output": 0,
+      "in_side_output_not_sent_late": 0,
+      "matches_ledger": true
+     },
+     "clickhouse.events": {
+      "rows": 89918,
+      "unique": 89918,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 89918,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 89005,
+      "counted_in_windows": 89005,
+      "late_expected": 913,
+      "late_side_output": 913,
+      "exact": true
+     },
+     "clickhouse.dlq": {
+      "rows": 81,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 89918,
+      "unique": 89918,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": true
+   }
+  }
+ ]
+}

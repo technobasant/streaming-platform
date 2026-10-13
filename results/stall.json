@@ -1,0 +1,332 @@
+{
+ "experiment": "stall",
+ "summary": {
+  "runs": 3,
+  "fast_burn_firing_after_s_median": 60.549,
+  "fast_burn_resolved_after_resume_s_median": 27.77,
+  "jobs_running_after_resume_s_median": 18.724,
+  "all_exact": false
+ },
+ "environment": {
+  "docker": "29.8.2",
+  "cpus": "8",
+  "mem_bytes": "12526637056"
+ },
+ "runs": [
+  {
+   "paused_s": 150.0,
+   "fast_burn_pending_after_s": 59.188616037368774,
+   "fast_burn_firing_after_s": 59.388949155807495,
+   "jobs_running_after_resume_s": 34.94162583351135,
+   "fast_burn_resolved_after_resume_s": 9.206732034683228,
+   "error_ratio_5m_at_resolve": 0.5423728813559322,
+   "slow_burn_state_at_end": "inactive",
+   "exact": false,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": false,
+    "clickhouse.events": true,
+    "windows_vs_late": false,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "stall0437x0",
+    "ledger": {
+     "slots": 164999,
+     "expected_valid": 164840,
+     "poison": {
+      "rule_violation": 55,
+      "truncated": 30,
+      "unknown_schema": 27,
+      "not_avro": 47
+     },
+     "poison_total": 159,
+     "late": 1662,
+     "out_of_order": 8259,
+     "duplicated": 3288,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 168128,
+      "unique": 164840,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 3288,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 164840,
+      "unique": 164840,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 2135,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 159,
+      "injected": 159,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 21,
+       "avro_decode_error": 30,
+       "schema_not_found": 27,
+       "rule:cart_quantity_not_positive": 23,
+       "not_confluent_avro": 47,
+       "rule:payment_amount_not_positive": 11
+      }
+     },
+     "events.late": {
+      "rows": 21580,
+      "unique": 21580,
+      "sent_late": 1662,
+      "sent_late_not_in_side_output": 276,
+      "in_side_output_not_sent_late": 20194,
+      "matches_ledger": false
+     },
+     "clickhouse.events": {
+      "rows": 164840,
+      "unique": 164840,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 164840,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 163178,
+      "counted_in_windows": 142984,
+      "late_expected": 1662,
+      "late_side_output": 21580,
+      "exact": false
+     },
+     "clickhouse.dlq": {
+      "rows": 159,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 164840,
+      "unique": 164840,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": false
+   }
+  },
+  {
+   "paused_s": 150.0,
+   "fast_burn_pending_after_s": 61.62715005874634,
+   "fast_burn_firing_after_s": 61.79443311691284,
+   "jobs_running_after_resume_s": 18.72392702102661,
+   "fast_burn_resolved_after_resume_s": 27.769928216934204,
+   "error_ratio_5m_at_resolve": 0.5423728813559322,
+   "slow_burn_state_at_end": "inactive",
+   "exact": false,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": false,
+    "clickhouse.events": true,
+    "windows_vs_late": false,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "stall0437x1",
+    "ledger": {
+     "slots": 164998,
+     "expected_valid": 164839,
+     "poison": {
+      "rule_violation": 55,
+      "truncated": 30,
+      "unknown_schema": 27,
+      "not_avro": 47
+     },
+     "poison_total": 159,
+     "late": 1662,
+     "out_of_order": 8259,
+     "duplicated": 3288,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 168127,
+      "unique": 164839,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 3288,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 164839,
+      "unique": 164839,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 658,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 159,
+      "injected": 159,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 21,
+       "avro_decode_error": 30,
+       "schema_not_found": 27,
+       "rule:cart_quantity_not_positive": 23,
+       "not_confluent_avro": 47,
+       "rule:payment_amount_not_positive": 11
+      }
+     },
+     "events.late": {
+      "rows": 40802,
+      "unique": 40802,
+      "sent_late": 1662,
+      "sent_late_not_in_side_output": 236,
+      "in_side_output_not_sent_late": 39376,
+      "matches_ledger": false
+     },
+     "clickhouse.events": {
+      "rows": 164839,
+      "unique": 164839,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 164839,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 163177,
+      "counted_in_windows": 123801,
+      "late_expected": 1662,
+      "late_side_output": 40802,
+      "exact": false
+     },
+     "clickhouse.dlq": {
+      "rows": 159,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 164839,
+      "unique": 164839,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": false
+   }
+  },
+  {
+   "paused_s": 150.0,
+   "fast_burn_pending_after_s": 60.38098216056824,
+   "fast_burn_firing_after_s": 60.54856204986572,
+   "jobs_running_after_resume_s": 11.509905338287354,
+   "fast_burn_resolved_after_resume_s": 33.82449293136597,
+   "error_ratio_5m_at_resolve": 0.5423728813559322,
+   "slow_burn_state_at_end": "inactive",
+   "exact": false,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": false,
+    "clickhouse.events": true,
+    "windows_vs_late": false,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "stall0437x2",
+    "ledger": {
+     "slots": 164999,
+     "expected_valid": 164840,
+     "poison": {
+      "rule_violation": 55,
+      "truncated": 30,
+      "unknown_schema": 27,
+      "not_avro": 47
+     },
+     "poison_total": 159,
+     "late": 1662,
+     "out_of_order": 8259,
+     "duplicated": 3288,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 168128,
+      "unique": 164840,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 3288,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 164840,
+      "unique": 164840,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 1613,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 159,
+      "injected": 159,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 21,
+       "avro_decode_error": 30,
+       "schema_not_found": 27,
+       "rule:cart_quantity_not_positive": 23,
+       "not_confluent_avro": 47,
+       "rule:payment_amount_not_positive": 11
+      }
+     },
+     "events.late": {
+      "rows": 30877,
+      "unique": 30877,
+      "sent_late": 1662,
+      "sent_late_not_in_side_output": 142,
+      "in_side_output_not_sent_late": 29357,
+      "matches_ledger": false
+     },
+     "clickhouse.events": {
+      "rows": 164840,
+      "unique": 164840,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 164840,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 163178,
+      "counted_in_windows": 133821,
+      "late_expected": 1662,
+      "late_side_output": 30877,
+      "exact": false
+     },
+     "clickhouse.dlq": {
+      "rows": 159,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 164840,
+      "unique": 164840,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": false
+   }
+  }
+ ]
+}

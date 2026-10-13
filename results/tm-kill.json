@@ -1,0 +1,423 @@
+{
+ "experiment": "tm-kill",
+ "summary": {
+  "runs": 3,
+  "failure_noticed_s_median": 8.14,
+  "all_tasks_running_s_median": 44.243,
+  "events_clean_aborted_and_rewritten": [
+   3556,
+   6647,
+   7522
+  ],
+  "source_records_since_checkpoint_at_kill": [
+   0,
+   0,
+   0
+  ],
+  "p99_s": [
+   25.153,
+   21.574,
+   26.717
+  ],
+  "max_s": [
+   26.698,
+   22.468,
+   27.62
+  ],
+  "all_exact": false
+ },
+ "environment": {
+  "docker": "29.8.2",
+  "cpus": "8",
+  "mem_bytes": "12526637056"
+ },
+ "runs": [
+  {
+   "victim": "taskmanager-1",
+   "victim_busy_slots": 2,
+   "kill_at_s": 30.9,
+   "failure_noticed_s": 8.792701005935669,
+   "all_tasks_running_s": 4.752063989639282,
+   "jobs": {
+    "windows": {
+     "restored_checkpoint": null,
+     "restored_at_s": null,
+     "first_checkpoint_after_running_s": 6.14557409286499
+    },
+    "clean": {
+     "restored_checkpoint": 874,
+     "restored_at_s": 10.55,
+     "first_checkpoint_after_running_s": 3.187142848968506
+    }
+   },
+   "clean_source_records_since_last_checkpoint": 0,
+   "events_clean_aborted_and_rewritten": 3556,
+   "latency": {
+    "run_id": "tmkill0419x0",
+    "n": 169038,
+    "p50_s": 5.324,
+    "p95_s": 21.535,
+    "p99_s": 25.153,
+    "max_s": 26.698,
+    "offered_rate": 2000.0,
+    "achieved_send_rate": 2000.0,
+    "sends": 183594,
+    "duration_s": 90.1
+   },
+   "exact": false,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": false,
+    "clickhouse.events": true,
+    "windows_vs_late": false,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "tmkill0419x0",
+    "ledger": {
+     "slots": 179999,
+     "expected_valid": 179819,
+     "poison": {
+      "rule_violation": 57,
+      "truncated": 36,
+      "unknown_schema": 33,
+      "not_avro": 54
+     },
+     "poison_total": 180,
+     "late": 1822,
+     "out_of_order": 8959,
+     "duplicated": 3595,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 183414,
+      "unique": 179819,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 3595,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 179819,
+      "unique": 179819,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 3556,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 180,
+      "injected": 180,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 22,
+       "avro_decode_error": 36,
+       "schema_not_found": 33,
+       "rule:cart_quantity_not_positive": 23,
+       "not_confluent_avro": 54,
+       "rule:payment_amount_not_positive": 12
+      }
+     },
+     "events.late": {
+      "rows": 1832,
+      "unique": 1832,
+      "sent_late": 1822,
+      "sent_late_not_in_side_output": 0,
+      "in_side_output_not_sent_late": 10,
+      "matches_ledger": false
+     },
+     "clickhouse.events": {
+      "rows": 179819,
+      "unique": 179819,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 179819,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 177997,
+      "counted_in_windows": 177987,
+      "late_expected": 1822,
+      "late_side_output": 1832,
+      "exact": false
+     },
+     "clickhouse.dlq": {
+      "rows": 180,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 179819,
+      "unique": 179819,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": false
+   }
+  },
+  {
+   "victim": "taskmanager-2",
+   "victim_busy_slots": 3,
+   "kill_at_s": 30.5,
+   "failure_noticed_s": 8.140340089797974,
+   "all_tasks_running_s": 54.589301109313965,
+   "jobs": {
+    "clean": {
+     "restored_checkpoint": 942,
+     "restored_at_s": 10.9,
+     "first_checkpoint_after_running_s": 6.45535683631897
+    },
+    "windows": {
+     "restored_checkpoint": 340,
+     "restored_at_s": 9.76,
+     "first_checkpoint_after_running_s": 0.010161876678466797
+    }
+   },
+   "clean_source_records_since_last_checkpoint": 0,
+   "events_clean_aborted_and_rewritten": 6647,
+   "latency": {
+    "run_id": "tmkill0419x1",
+    "n": 169034,
+    "p50_s": 4.452,
+    "p95_s": 17.972,
+    "p99_s": 21.574,
+    "max_s": 22.468,
+    "offered_rate": 2000.0,
+    "achieved_send_rate": 1999.9,
+    "sends": 183590,
+    "duration_s": 90.0
+   },
+   "exact": false,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": false,
+    "clickhouse.events": true,
+    "windows_vs_late": false,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "tmkill0419x1",
+    "ledger": {
+     "slots": 179995,
+     "expected_valid": 179815,
+     "poison": {
+      "rule_violation": 57,
+      "truncated": 36,
+      "unknown_schema": 33,
+      "not_avro": 54
+     },
+     "poison_total": 180,
+     "late": 1822,
+     "out_of_order": 8959,
+     "duplicated": 3595,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 183410,
+      "unique": 179815,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 3595,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 179815,
+      "unique": 179815,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 6647,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 180,
+      "injected": 180,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 22,
+       "avro_decode_error": 36,
+       "schema_not_found": 33,
+       "rule:cart_quantity_not_positive": 23,
+       "not_confluent_avro": 54,
+       "rule:payment_amount_not_positive": 12
+      }
+     },
+     "events.late": {
+      "rows": 1584,
+      "unique": 1584,
+      "sent_late": 1822,
+      "sent_late_not_in_side_output": 241,
+      "in_side_output_not_sent_late": 3,
+      "matches_ledger": false
+     },
+     "clickhouse.events": {
+      "rows": 179815,
+      "unique": 179815,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 179815,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 177993,
+      "counted_in_windows": 177990,
+      "late_expected": 1822,
+      "late_side_output": 1584,
+      "exact": false
+     },
+     "clickhouse.dlq": {
+      "rows": 180,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 179815,
+      "unique": 179815,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": false
+   }
+  },
+  {
+   "victim": "taskmanager-1",
+   "victim_busy_slots": 3,
+   "kill_at_s": 30.7,
+   "failure_noticed_s": 8.027185916900635,
+   "all_tasks_running_s": 44.243221044540405,
+   "jobs": {
+    "windows": {
+     "restored_checkpoint": 398,
+     "restored_at_s": 10.06,
+     "first_checkpoint_after_running_s": 6.249922037124634
+    },
+    "clean": {
+     "restored_checkpoint": 1009,
+     "restored_at_s": 13.48,
+     "first_checkpoint_after_running_s": 0.020487070083618164
+    }
+   },
+   "clean_source_records_since_last_checkpoint": 0,
+   "events_clean_aborted_and_rewritten": 7522,
+   "latency": {
+    "run_id": "tmkill0419x2",
+    "n": 169038,
+    "p50_s": 5.12,
+    "p95_s": 23.127,
+    "p99_s": 26.717,
+    "max_s": 27.62,
+    "offered_rate": 2000.0,
+    "achieved_send_rate": 2000.0,
+    "sends": 183594,
+    "duration_s": 90.0
+   },
+   "exact": false,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": false,
+    "clickhouse.events": true,
+    "windows_vs_late": false,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "tmkill0419x2",
+    "ledger": {
+     "slots": 179999,
+     "expected_valid": 179819,
+     "poison": {
+      "rule_violation": 57,
+      "truncated": 36,
+      "unknown_schema": 33,
+      "not_avro": 54
+     },
+     "poison_total": 180,
+     "late": 1822,
+     "out_of_order": 8959,
+     "duplicated": 3595,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 183414,
+      "unique": 179819,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 3595,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 179819,
+      "unique": 179819,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 7522,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 180,
+      "injected": 180,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 22,
+       "avro_decode_error": 36,
+       "schema_not_found": 33,
+       "rule:cart_quantity_not_positive": 23,
+       "not_confluent_avro": 54,
+       "rule:payment_amount_not_positive": 12
+      }
+     },
+     "events.late": {
+      "rows": 16398,
+      "unique": 16398,
+      "sent_late": 1822,
+      "sent_late_not_in_side_output": 95,
+      "in_side_output_not_sent_late": 14671,
+      "matches_ledger": false
+     },
+     "clickhouse.events": {
+      "rows": 179819,
+      "unique": 179819,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 179819,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 177997,
+      "counted_in_windows": 163326,
+      "late_expected": 1822,
+      "late_side_output": 16398,
+      "exact": false
+     },
+     "clickhouse.dlq": {
+      "rows": 180,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 179819,
+      "unique": 179819,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": false
+   }
+  }
+ ]
+}

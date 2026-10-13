@@ -1,0 +1,445 @@
+{
+ "experiment": "broker-kill",
+ "summary": {
+  "runs": 3,
+  "producer_failed_total": 0,
+  "max_ack_ms_after_kill_median": 11652.4,
+  "max_ack_ms_steady_median": 622.6,
+  "isr_restored_after_restart_s_median": 20.898,
+  "p99_s_median": 48.083,
+  "all_exact": false
+ },
+ "environment": {
+  "docker": "29.8.2",
+  "cpus": "8",
+  "mem_bytes": "12526637056"
+ },
+ "runs": [
+  {
+   "victim": "kafka-1",
+   "was_controller": true,
+   "kill_at_s": 29.0,
+   "urp_visible_after_s": 15.373416185379028,
+   "isr_restored_after_restart_s": 20.898432970046997,
+   "producer_failed": 0,
+   "producer_errors": {},
+   "max_ack_ms_steady": 622.6,
+   "max_ack_ms_after_kill": 11807.9,
+   "acked_per_s_after_kill": [
+    2041,
+    376,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    19394,
+    6772,
+    2031,
+    2034
+   ],
+   "gatekeeper_aborts": 0.0,
+   "flink_restarts": {
+    "clean": 1.0,
+    "windows": 0.0
+   },
+   "latency": {
+    "run_id": "bkill0359x0",
+    "n": 187823,
+    "p50_s": 5.738,
+    "p95_s": 33.179,
+    "p99_s": 39.402,
+    "max_s": 41.399,
+    "offered_rate": 2000.0,
+    "achieved_send_rate": 2000.0,
+    "sends": 204016,
+    "duration_s": 100.0
+   },
+   "exact": false,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": false,
+    "clickhouse.events": true,
+    "windows_vs_late": false,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "bkill0359x0",
+    "ledger": {
+     "slots": 199996,
+     "expected_valid": 199798,
+     "poison": {
+      "rule_violation": 61,
+      "truncated": 38,
+      "unknown_schema": 38,
+      "not_avro": 61
+     },
+     "poison_total": 198,
+     "late": 2049,
+     "out_of_order": 9926,
+     "duplicated": 4020,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 203818,
+      "unique": 199798,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 4020,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 199798,
+      "unique": 199798,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 198,
+      "injected": 198,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 24,
+       "avro_decode_error": 38,
+       "schema_not_found": 38,
+       "rule:cart_quantity_not_positive": 24,
+       "not_confluent_avro": 61,
+       "rule:payment_amount_not_positive": 13
+      }
+     },
+     "events.late": {
+      "rows": 2053,
+      "unique": 2053,
+      "sent_late": 2049,
+      "sent_late_not_in_side_output": 0,
+      "in_side_output_not_sent_late": 4,
+      "matches_ledger": false
+     },
+     "clickhouse.events": {
+      "rows": 199798,
+      "unique": 199798,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 199798,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 197749,
+      "counted_in_windows": 197745,
+      "late_expected": 2049,
+      "late_side_output": 2053,
+      "exact": false
+     },
+     "clickhouse.dlq": {
+      "rows": 198,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 199798,
+      "unique": 199798,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": false
+   }
+  },
+  {
+   "victim": "kafka-2",
+   "was_controller": true,
+   "kill_at_s": 29.2,
+   "urp_visible_after_s": 17.636079788208008,
+   "isr_restored_after_restart_s": 22.751630067825317,
+   "producer_failed": 0,
+   "producer_errors": {},
+   "max_ack_ms_steady": 495.3,
+   "max_ack_ms_after_kill": 11362.9,
+   "acked_per_s_after_kill": [
+    2001,
+    955,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    23583,
+    2000,
+    2071,
+    1957
+   ],
+   "gatekeeper_aborts": 0.0,
+   "flink_restarts": {
+    "windows": 0.0,
+    "clean": 1.0
+   },
+   "latency": {
+    "run_id": "bkill0359x1",
+    "n": 187826,
+    "p50_s": 6.212,
+    "p95_s": 41.973,
+    "p99_s": 48.083,
+    "max_s": 50.665,
+    "offered_rate": 2000.0,
+    "achieved_send_rate": 2000.0,
+    "sends": 204019,
+    "duration_s": 100.0
+   },
+   "exact": false,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": false,
+    "clickhouse.events": true,
+    "windows_vs_late": false,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "bkill0359x1",
+    "ledger": {
+     "slots": 199999,
+     "expected_valid": 199801,
+     "poison": {
+      "rule_violation": 61,
+      "truncated": 38,
+      "unknown_schema": 38,
+      "not_avro": 61
+     },
+     "poison_total": 198,
+     "late": 2049,
+     "out_of_order": 9926,
+     "duplicated": 4020,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 203821,
+      "unique": 199801,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 4020,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 199801,
+      "unique": 199801,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 198,
+      "injected": 198,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 24,
+       "avro_decode_error": 38,
+       "schema_not_found": 38,
+       "rule:cart_quantity_not_positive": 24,
+       "not_confluent_avro": 61,
+       "rule:payment_amount_not_positive": 13
+      }
+     },
+     "events.late": {
+      "rows": 40072,
+      "unique": 40072,
+      "sent_late": 2049,
+      "sent_late_not_in_side_output": 0,
+      "in_side_output_not_sent_late": 38023,
+      "matches_ledger": false
+     },
+     "clickhouse.events": {
+      "rows": 199801,
+      "unique": 199801,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 199801,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 197752,
+      "counted_in_windows": 159729,
+      "late_expected": 2049,
+      "late_side_output": 40072,
+      "exact": false
+     },
+     "clickhouse.dlq": {
+      "rows": 198,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 199801,
+      "unique": 199801,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": false
+   }
+  },
+  {
+   "victim": "kafka-1",
+   "was_controller": true,
+   "kill_at_s": 28.9,
+   "urp_visible_after_s": null,
+   "isr_restored_after_restart_s": 0.03314614295959473,
+   "producer_failed": 0,
+   "producer_errors": {},
+   "max_ack_ms_steady": 663.8,
+   "max_ack_ms_after_kill": 11652.4,
+   "acked_per_s_after_kill": [
+    2085,
+    2048,
+    13,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    23,
+    24342,
+    2160,
+    2033
+   ],
+   "gatekeeper_aborts": 0.0,
+   "flink_restarts": {
+    "clean": 1.0,
+    "windows": 0.0
+   },
+   "latency": {
+    "run_id": "bkill0359x2",
+    "n": 187823,
+    "p50_s": 36.241,
+    "p95_s": 76.513,
+    "p99_s": 81.286,
+    "max_s": 83.379,
+    "offered_rate": 2000.0,
+    "achieved_send_rate": 2000.0,
+    "sends": 204016,
+    "duration_s": 100.0
+   },
+   "exact": false,
+   "layers": {
+    "events.valid": true,
+    "events.clean": true,
+    "events.dlq": true,
+    "events.late": false,
+    "clickhouse.events": true,
+    "windows_vs_late": false,
+    "clickhouse.dlq": true,
+    "iceberg.events": true
+   },
+   "reconcile": {
+    "run_id": "bkill0359x2",
+    "ledger": {
+     "slots": 199996,
+     "expected_valid": 199798,
+     "poison": {
+      "rule_violation": 61,
+      "truncated": 38,
+      "unknown_schema": 38,
+      "not_avro": 61
+     },
+     "poison_total": 198,
+     "late": 2049,
+     "out_of_order": 9926,
+     "duplicated": 4020,
+     "producer_failed": 0
+    },
+    "layers": {
+     "events.valid": {
+      "rows": 203818,
+      "unique": 199798,
+      "missing": 0,
+      "unexpected": 0,
+      "duplicates_expected": 4020,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.clean": {
+      "rows": 199798,
+      "unique": 199798,
+      "missing": 0,
+      "unexpected": 0,
+      "aborted_and_rewritten": 0,
+      "exact": true
+     },
+     "events.dlq": {
+      "rows": 198,
+      "injected": 198,
+      "exact": true,
+      "reasons": {
+       "rule:currency_unknown": 24,
+       "avro_decode_error": 38,
+       "schema_not_found": 38,
+       "rule:cart_quantity_not_positive": 24,
+       "not_confluent_avro": 61,
+       "rule:payment_amount_not_positive": 13
+      }
+     },
+     "events.late": {
+      "rows": 81569,
+      "unique": 81569,
+      "sent_late": 2049,
+      "sent_late_not_in_side_output": 0,
+      "in_side_output_not_sent_late": 79520,
+      "matches_ledger": false
+     },
+     "clickhouse.events": {
+      "rows": 199798,
+      "unique": 199798,
+      "missing": 0,
+      "unexpected": 0,
+      "rows_before_merge": 199798,
+      "exact": true
+     },
+     "windows_vs_late": {
+      "on_time_expected": 197749,
+      "counted_in_windows": 118229,
+      "late_expected": 2049,
+      "late_side_output": 81569,
+      "exact": false
+     },
+     "clickhouse.dlq": {
+      "rows": 198,
+      "exact": true
+     },
+     "iceberg.events": {
+      "rows": 199798,
+      "unique": 199798,
+      "missing": 0,
+      "unexpected": 0,
+      "exact": true
+     }
+    },
+    "exact": false
+   }
+  }
+ ]
+}
