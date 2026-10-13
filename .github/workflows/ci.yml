@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"  # the uv that wrote uv.lock; bump both together
+      - run: uv sync --locked
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy src
+      - run: uv run pytest
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker compose config -q
+      - name: Prometheus config and alert rules
+        run: >
+          docker run --rm -v "$PWD/docker/prometheus:/etc/prometheus:ro"
+          --entrypoint promtool prom/prometheus:v3.5.0
+          check config /etc/prometheus/prometheus.yml
+
+  # The contract, against a real Schema Registry on a real three-broker cluster:
+  # the compatible change is accepted, each breaking one refused with 409.
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.23"
+      - run: docker compose up -d --wait schema-registry
+      - run: docker compose run --rm init
+      - run: uv sync --locked
+      - run: uv run pytest -m registry -v
+        env:
+          SCHEMA_REGISTRY_URL: http://localhost:18085
+      - if: failure()
+        run: docker compose logs --tail 100
+
+  # The whole stack, as `make up` builds it — not a reduced copy that could drift
+  # from it. A 16 GB runner fits it. Low rate: this proves the wiring and exactly-once
+  # bookkeeping, not throughput. SQL is "linted" here by running it: a ClickHouse or
+  # Flink SQL error fails the job.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - run: mkdir -p runs && chmod 777 runs
+      - run: make up
+      - name: 45 s of traffic with every fault, then reconcile every layer
+        run: |
+          docker compose --profile load run --rm -T generator \
+            generate --rate 300 --duration 45 --run-id ci
+          docker compose run --rm --no-deps -T -v "$PWD/runs:/app/runs" gatekeeper \
+            reconcile runs/ci.json --wait 300 | tee reconcile.json
+      - run: docker compose run --rm --no-deps -T gatekeeper contract-check > /dev/null
+      - if: failure()
+        run: |
+          docker compose ps
+          docker compose logs --tail 80 gatekeeper jobmanager taskmanager-1 clickhouse iceberg-rest
