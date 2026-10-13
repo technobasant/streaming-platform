@@ -9,8 +9,13 @@ SET 'parallelism.default' = '2';
 -- Window and session state is small and short-lived: keep it on the heap. With
 -- RocksDB, the cluster default, this job topped out near 2,800 events/s.
 SET 'state.backend.type' = 'hashmap';
--- A partition with no traffic must not hold the watermark back for ever.
-SET 'table.exec.source.idle-timeout' = '10 s';
+-- A partition with no traffic must not hold the watermark back for ever. But a
+-- partition that is only stalled must not be declared idle either: the watermark
+-- would move on without it, and everything it then delivers is late. Killing a
+-- broker stalled some partitions for up to 18 s, and with a 10 s timeout 1.7% of
+-- that run's on-time events went to events.late. 60 s outlasts a leader election
+-- here; the cost is that windows close up to a minute late when traffic stops.
+SET 'table.exec.source.idle-timeout' = '60 s';
 
 CREATE TABLE events_clean (
   event_id     STRING,
