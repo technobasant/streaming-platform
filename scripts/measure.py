@@ -396,7 +396,9 @@ def exp_stall(runs: int, rate: int, hold: int) -> None:
         t_resume = time.time()
         sh(*COMPOSE, "unpause", *tms)
         recovered = wait_until(jobs_healthy, 300, 0.5)
+        # Starts when the jobs are healthy again, not at the unpause.
         resolved = wait_until(lambda: "FreshnessBudgetFastBurn" not in alerts(), 600, 1)
+        since_resume = round(time.time() - t_resume, 2) if resolved is not None else None
         burn5m = prom("sp:freshness_error_ratio:rate5m")
         g.join()
         rec = reconcile(run_id, wait=300)
@@ -404,7 +406,8 @@ def exp_stall(runs: int, rate: int, hold: int) -> None:
             "paused_s": round(t_resume - t_pause, 1),
             "fast_burn_pending_after_s": pending, "fast_burn_firing_after_s": fired_at,
             "jobs_running_after_resume_s": recovered,
-            "fast_burn_resolved_after_resume_s": resolved,
+            "fast_burn_resolved_after_jobs_running_s": resolved,
+            "fast_burn_resolved_after_resume_s": since_resume,
             "error_ratio_5m_at_resolve": burn5m,
             "slow_burn_state_at_end": alerts().get("FreshnessBudgetSlowBurn", "inactive"),
             "exact": rec["exact"], "layers": layers_exact(rec), "reconcile": rec,
@@ -415,6 +418,9 @@ def exp_stall(runs: int, rate: int, hold: int) -> None:
         "fast_burn_firing_after_s_median": med([r["fast_burn_firing_after_s"] for r in out]),
         "fast_burn_resolved_after_resume_s_median": med(
             [r["fast_burn_resolved_after_resume_s"] for r in out]
+        ),
+        "fast_burn_resolved_after_jobs_running_s_median": med(
+            [r["fast_burn_resolved_after_jobs_running_s"] for r in out]
         ),
         "jobs_running_after_resume_s_median": med([r["jobs_running_after_resume_s"] for r in out]),
         "all_exact": all(r["exact"] for r in out),
